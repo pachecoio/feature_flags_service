@@ -1,5 +1,5 @@
-mod feature_flag_handlers;
-mod environment_handlers;
+pub mod feature_flag_handlers;
+pub mod environment_handlers;
 
 use std::fmt::{Display, Formatter};
 
