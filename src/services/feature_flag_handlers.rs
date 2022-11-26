@@ -1,12 +1,11 @@
-use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
+use crate::adapters::repositories::feature_flags_repository::{feature_flags_repository_factory, FeatureFlagRepository};
 use crate::adapters::repositories::BaseRepository;
 use crate::domain::models::FeatureFlag;
 use crate::services::ServiceError;
 use mongodb::bson::{doc, to_document};
 use serde::Serialize;
 
-pub async fn create(name: &str, label: &str) -> Result<String, ServiceError> {
-    let repo = feature_flags_repository_factory().await;
+pub async fn create(repo: &FeatureFlagRepository<FeatureFlag>, name: &str, label: &str) -> Result<String, ServiceError> {
     let inserted_id = repo.create(&FeatureFlag::new(name, label)).await;
     match inserted_id {
         Ok(id) => Ok(id.clone()),
@@ -17,15 +16,13 @@ pub async fn create(name: &str, label: &str) -> Result<String, ServiceError> {
 }
 
 pub async fn find(
+    repo: &FeatureFlagRepository<FeatureFlag>,
     filters: impl Into<Option<Filters>> + Send,
 ) -> Result<Vec<FeatureFlag>, ServiceError> {
-    let repo = feature_flags_repository_factory().await;
-
     let _filters = match filters.into() {
         None => doc! {},
         Some(f) => to_document(&f).unwrap(),
     };
-
     let res = repo.find(_filters).await;
     match res {
         Ok(res) => Ok(res),
@@ -35,8 +32,7 @@ pub async fn find(
     }
 }
 
-pub async fn get(id: &str) -> Result<FeatureFlag, ServiceError> {
-    let repo = feature_flags_repository_factory().await;
+pub async fn get(repo: &FeatureFlagRepository<FeatureFlag>, id: &str) -> Result<FeatureFlag, ServiceError> {
     let res = repo.get(&id).await;
     match res {
         Ok(flag) => Ok(flag),
@@ -46,8 +42,7 @@ pub async fn get(id: &str) -> Result<FeatureFlag, ServiceError> {
     }
 }
 
-pub async fn update(id: &str, label: &str) -> Result<(), ServiceError> {
-    let repo = feature_flags_repository_factory().await;
+pub async fn update(repo: &FeatureFlagRepository<FeatureFlag>, id: &str, label: &str) -> Result<(), ServiceError> {
     match repo.get(&id).await {
         Ok(mut feature_flag) => {
             if feature_flag.label == label {
@@ -69,8 +64,7 @@ pub async fn update(id: &str, label: &str) -> Result<(), ServiceError> {
     }
 }
 
-pub async fn delete(id: &str) -> Result<(), ServiceError> {
-    let repo = feature_flags_repository_factory().await;
+pub async fn delete(repo: &FeatureFlagRepository<FeatureFlag>, id: &str) -> Result<(), ServiceError> {
     match repo.delete(id).await {
         Ok(_) => Ok(()),
         Err(e) => Err(ServiceError {
@@ -89,15 +83,18 @@ pub struct Filters {
 
 #[cfg(test)]
 mod tests {
+    use crate::database::init_db;
     use super::*;
 
     #[actix_web::test]
     async fn test_create() {
-        let res = create("test", "test").await;
+        let db = init_db().await.unwrap();
+        let repo = feature_flags_repository_factory(&db).await;
+        let res = create(&repo, "test", "test").await;
         assert!(res.is_ok());
         match res {
             Ok(id) => {
-                delete(&id).await.unwrap();
+                delete(&repo, &id).await.unwrap();
             }
             Err(_) => {}
         }
@@ -105,14 +102,16 @@ mod tests {
 
     #[actix_web::test]
     async fn test_update() {
-        let res = create("test", "test").await;
+        let db = init_db().await.unwrap();
+        let repo = feature_flags_repository_factory(&db).await;
+        let res = create(&repo, "test", "test").await;
         assert!(res.is_ok());
         match res {
             Ok(id) => {
-                update(&id, "new_label").await.unwrap();
-                let res = get(&id).await.unwrap();
+                update(&repo, &id, "new_label").await.unwrap();
+                let res = get(&repo, &id).await.unwrap();
                 assert_eq!(res.label, "new_label");
-                delete(&id).await.unwrap();
+                delete(&repo, &id).await.unwrap();
             }
             Err(_) => {}
         }

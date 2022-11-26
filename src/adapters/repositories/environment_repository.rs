@@ -4,12 +4,12 @@ use crate::adapters::repositories::{
 use crate::domain::models::Environment;
 use async_trait::async_trait;
 use mongodb::bson::{doc, to_document};
-use mongodb::Collection;
+use mongodb::{Collection, Database};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-pub async fn environment_repository_factory() -> EnvironmentRepository<Environment> {
-    EnvironmentRepository::<Environment>::new("environments").await
+pub async fn environment_repository_factory(db: &Database) -> EnvironmentRepository<Environment> {
+    EnvironmentRepository::<Environment>::new(db, "environments").await
 }
 
 pub struct EnvironmentRepository<T> {
@@ -17,8 +17,8 @@ pub struct EnvironmentRepository<T> {
 }
 
 impl<T> EnvironmentRepository<T> {
-    pub async fn new(collection_name: &str) -> EnvironmentRepository<T> {
-        let collection = init_collection::<T>(collection_name).await;
+    pub async fn new(db: &Database, collection_name: &str) -> EnvironmentRepository<T> {
+        let collection = init_collection::<T>(db, collection_name).await;
         Self { collection }
     }
 }
@@ -65,15 +65,18 @@ mod tests {
     use crate::adapters::repositories::BaseRepository;
     use crate::domain::models::{FeatureFlag, Operator, Rule};
     use std::collections::HashSet;
+    use crate::database::init_db;
 
     #[actix_web::test]
     async fn test_environment_repository() {
-        let environment = environment_repository_factory().await;
+        let db = init_db().await.unwrap();
+        let environment = environment_repository_factory(&db).await;
     }
 
     #[actix_web::test]
     async fn test_create_environment() {
-        let repo = environment_repository_factory().await;
+        let db = init_db().await.unwrap();
+        let repo = environment_repository_factory(&db).await;
         let environment = Environment::new("development");
         let res = repo.create(&environment).await;
         if let Ok(inserted_id) = res {
@@ -84,7 +87,8 @@ mod tests {
 
     #[actix_web::test]
     async fn test_cannot_create_duplicated_environment() {
-        let repo = environment_repository_factory().await;
+        let db = init_db().await.unwrap();
+        let repo = environment_repository_factory(&db).await;
         let environment = Environment::new("existing_env");
         if let Ok(inserted_id) = repo.create(&environment).await {
             let res = repo.create(&environment).await;
@@ -99,7 +103,8 @@ mod tests {
 
     #[actix_web::test]
     async fn test_create_environment_with_flags() {
-        let repo = environment_repository_factory().await;
+        let db = init_db().await.unwrap();
+        let repo = environment_repository_factory(&db).await;
         let mut environment = Environment::new("development");
 
         let flag = FeatureFlag::new("sample_flag", "Sample Flag");
@@ -113,7 +118,8 @@ mod tests {
 
     #[actix_web::test]
     async fn test_update_environment() {
-        let repo = environment_repository_factory().await;
+        let db = init_db().await.unwrap();
+        let repo = environment_repository_factory(&db).await;
         let mut environment = Environment::new("development");
 
         let flag = FeatureFlag::new("sample_flag", "Sample Flag");

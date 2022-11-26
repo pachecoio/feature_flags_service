@@ -6,7 +6,7 @@ use futures::stream::TryStreamExt;
 use mongodb::bson::oid::ObjectId;
 use mongodb::bson::{doc, to_document, Document};
 use mongodb::error::Error;
-use mongodb::Collection;
+use mongodb::{Collection, Database};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
@@ -118,14 +118,13 @@ where
 }
 
 impl<T> Repository<T> {
-    pub(crate) async fn new(collection_name: &str) -> Repository<T> {
-        let collection = init_collection::<T>(collection_name).await;
+    pub(crate) async fn new(db: &Database, collection_name: &str) -> Repository<T> {
+        let collection = init_collection::<T>(db, collection_name).await;
         Self { collection }
     }
 }
 
-async fn init_collection<T>(collection_name: &str) -> Collection<T> {
-    let db = init_db().await.expect("Failed to initialize database");
+async fn init_collection<T>(db: &Database, collection_name: &str) -> Collection<T> {
     let collection: Collection<T> = db.collection(collection_name);
     collection
 }

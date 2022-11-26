@@ -1,16 +1,18 @@
+use actix_web::web::Data;
 use crate::adapters::repositories::{
     init_collection, BaseRepository, ErrorKind, Repository, RepositoryError,
 };
 use crate::domain::models::FeatureFlag;
 use mongodb::bson::{doc, to_document};
-use mongodb::Collection;
+use mongodb::{Collection, Database};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use async_trait::async_trait;
+use crate::database::init_db;
 
-pub async fn feature_flags_repository_factory() -> FeatureFlagRepository<FeatureFlag> {
-    FeatureFlagRepository::<FeatureFlag>::new("feature_flags").await
+pub async fn feature_flags_repository_factory(db: &Database) -> FeatureFlagRepository<FeatureFlag> {
+    FeatureFlagRepository::<FeatureFlag>::new(&db, "feature_flags").await
 }
 
 pub struct FeatureFlagRepository<T> {
@@ -18,8 +20,8 @@ pub struct FeatureFlagRepository<T> {
 }
 
 impl<T> FeatureFlagRepository<T> {
-    pub async fn new(collection_name: &str) -> FeatureFlagRepository<T> {
-        let collection = init_collection::<T>(collection_name).await;
+    pub async fn new(db: &Database, collection_name: &str) -> FeatureFlagRepository<T> {
+        let collection = init_collection::<T>(db, collection_name).await;
         Self { collection }
     }
 }
@@ -68,7 +70,8 @@ mod test_flag_definition_repository {
 
     #[actix_web::test]
     async fn repo_create() {
-        let repo = feature_flags_repository_factory().await;
+        let db = init_db().await.unwrap();
+        let repo = feature_flags_repository_factory(&db).await;
         let entity = FeatureFlag::new("sample_flag", "Sample Flag");
         let res = repo.create(&entity).await;
         assert!(res.is_ok());
@@ -85,14 +88,16 @@ mod test_flag_definition_repository {
 
     #[actix_web::test]
     async fn repo_find_all() {
-        let repo = feature_flags_repository_factory().await;
+        let db = init_db().await.unwrap();
+        let repo = feature_flags_repository_factory(&db).await;
         let res = repo.find(None).await;
         assert!(res.is_ok());
     }
 
     #[actix_web::test]
     async fn repo_update() {
-        let repo = feature_flags_repository_factory().await;
+        let db = init_db().await.unwrap();
+        let repo = feature_flags_repository_factory(&db).await;
         let entity = FeatureFlag::new("flag_to_update", "Flag to update");
         let res = repo.create(&entity).await;
         let inserted_id = res.unwrap();
@@ -110,7 +115,8 @@ mod test_flag_definition_repository {
 
     #[actix_web::test]
     async fn repo_delete() {
-        let repo = feature_flags_repository_factory().await;
+        let db = init_db().await.unwrap();
+        let repo = feature_flags_repository_factory(&db).await;
         let entity = FeatureFlag::new("flag_to_delete", "Flag to Delete");
         let res = repo.create(&entity).await;
         assert!(res.is_ok());
