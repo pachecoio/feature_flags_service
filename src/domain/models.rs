@@ -1,3 +1,4 @@
+use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
@@ -6,7 +7,7 @@ use std::hash::Hash;
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FeatureFlag {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
+    pub id: Option<ObjectId>,
     pub name: String,
     pub label: String,
     pub enabled: bool,
@@ -28,7 +29,7 @@ impl FeatureFlag {
 #[derive(Serialize, Deserialize)]
 pub struct Environment {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
+    pub id: Option<ObjectId>,
     pub name: String,
     pub flags: HashSet<FeatureFlag>,
 }
@@ -53,6 +54,10 @@ impl Environment {
             .into_iter()
             .filter(|f| f.name != flag.name)
             .collect();
+    }
+
+    pub fn set_flags(&mut self, flags: HashSet<FeatureFlag>) {
+        self.flags = flags;
     }
 }
 
