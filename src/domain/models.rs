@@ -1,7 +1,7 @@
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FeatureFlag {
@@ -10,7 +10,7 @@ pub struct FeatureFlag {
     pub name: String,
     pub label: String,
     pub enabled: bool,
-    pub rules: Vec<Rule>
+    pub rules: Vec<Rule>,
 }
 
 impl FeatureFlag {
@@ -20,7 +20,7 @@ impl FeatureFlag {
             name: name.to_string(),
             label: label.to_string(),
             enabled: false,
-            rules: Vec::new()
+            rules: Vec::new(),
         }
     }
 }
@@ -30,7 +30,7 @@ pub struct Environment {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub name: String,
-    pub flags: HashSet<FeatureFlag>
+    pub flags: HashSet<FeatureFlag>,
 }
 
 impl Environment {
@@ -47,23 +47,26 @@ impl Environment {
     }
 
     pub fn remove_flag(&mut self, flag: &FeatureFlag) {
-        self.flags = self.flags.clone().into_iter().filter(|f| f.name != flag.name).collect();
+        self.flags = self
+            .flags
+            .clone()
+            .into_iter()
+            .filter(|f| f.name != flag.name)
+            .collect();
     }
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Rule {
     pub parameter: String,
-    pub operator: Operator
+    pub operator: Operator,
 }
 
 impl Rule {
     pub fn check(&self, input: &Map<String, Value>) -> bool {
         match input.get(&self.parameter) {
             None => self.validate(&Value::Null),
-            Some(value) => {
-                self.validate(value)
-            }
+            Some(value) => self.validate(value),
         }
     }
 
@@ -78,8 +81,8 @@ impl Rule {
                     }
                 }
                 return true;
-            },
-            _ => false
+            }
+            _ => false,
         }
     }
 
@@ -88,15 +91,10 @@ impl Rule {
             Operator::Is(v) => value == Some(v),
             Operator::IsNot(v) => value.is_none() || value != Some(v),
             Operator::Contains(v) => value.unwrap_or("").contains(v),
-            Operator::IsOneOf(v) => value.is_some() && v.contains(
-                &value.unwrap().to_string()
-            ),
-            Operator::IsNotOneOf(v) => value.is_none() || !v.contains(
-                &value.unwrap().to_string()
-            )
+            Operator::IsOneOf(v) => value.is_some() && v.contains(&value.unwrap().to_string()),
+            Operator::IsNotOneOf(v) => value.is_none() || !v.contains(&value.unwrap().to_string()),
         }
     }
-
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
@@ -114,28 +112,21 @@ mod tests {
 
     #[test]
     fn test_feature_flag_instance() {
-        let flag = FeatureFlag::new(
-            "sample_flag",
-            "Sample Flag"
-        );
+        let flag = FeatureFlag::new("sample_flag", "Sample Flag");
         assert_eq!(flag.name, "sample_flag");
     }
 
     #[test]
     fn test_environment_instance() {
-        let env = Environment::new(
-            "development",
-        );
+        let env = Environment::new("development");
         assert_eq!(env.name, "development");
         assert_eq!(env.flags.len(), 0);
     }
 
     #[test]
     fn test_environment_add_flag() {
-        let mut env = Environment::new(
-            "development"
-        );
-        let flag =  FeatureFlag::new("sample_flag", "Sample Flag");
+        let mut env = Environment::new("development");
+        let flag = FeatureFlag::new("sample_flag", "Sample Flag");
         env.add_flag(&flag);
         env.add_flag(&flag); // Should not add repeated flag
         assert_eq!(env.flags.len(), 1);
@@ -146,10 +137,8 @@ mod tests {
 
     #[test]
     fn test_environment_get_flags_from_context() {
-        let mut env = Environment::new(
-            "development"
-        );
-        let flag =  FeatureFlag::new("sample_flag", "Sample Flag");
+        let mut env = Environment::new("development");
+        let flag = FeatureFlag::new("sample_flag", "Sample Flag");
         env.add_flag(&flag);
     }
 }
@@ -198,7 +187,7 @@ mod test_rules {
         assert!(rule.check(&payload));
     }
 
-     #[test]
+    #[test]
     fn test_rule_contains() {
         let rule = Rule {
             parameter: "tenant".to_string(),
@@ -213,7 +202,7 @@ mod test_rules {
         assert!(!rule.check(&payload));
     }
 
-     #[test]
+    #[test]
     fn test_rule_is_one_of() {
         let rule = Rule {
             parameter: "tenant".to_string(),
@@ -228,7 +217,7 @@ mod test_rules {
         assert!(!rule.check(&payload));
     }
 
-     #[test]
+    #[test]
     fn test_rule_is_not_one_of() {
         let rule = Rule {
             parameter: "tenant".to_string(),
@@ -250,9 +239,10 @@ mod test_rules {
             operator: Operator::Is("tenant_1".to_string()),
         };
         let mut payload = Map::new();
-        payload.insert("tenant".to_string(), Value::Array(Vec::from([
-            Value::String("tenant_1".to_string()),
-        ])));
+        payload.insert(
+            "tenant".to_string(),
+            Value::Array(Vec::from([Value::String("tenant_1".to_string())])),
+        );
         assert!(rule.check(&payload));
     }
 }
@@ -262,7 +252,5 @@ mod test_environment {
     use super::*;
 
     #[test]
-    fn test_environment_get_flags() {
-
-    }
+    fn test_environment_get_flags() {}
 }
