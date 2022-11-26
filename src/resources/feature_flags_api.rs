@@ -1,4 +1,4 @@
-use actix_web::{Result, Scope, web};
+use actix_web::{HttpRequest, Result, Scope, web};
 use actix_web::web::{Json};
 use serde::{Serialize, Deserialize};
 use crate::domain::models::{FeatureFlag};
@@ -21,10 +21,15 @@ async fn get(_id: web::Path<String>) -> Result<Json<FeatureFlag>> {
     Ok(Json(flag))
 }
 
+async fn create(body: Json<FeatureFlag>) -> Result<Json<FeatureFlag>> {
+    Ok(body)
+}
+
 fn create_scope() -> Scope {
     web::scope("/feature_flags")
         .route("", web::get().to(find))
         .route("/{id}", web::get().to(get))
+        .route("", web::post().to(create))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -36,6 +41,7 @@ struct FeatureFlagList {
 mod tests {
     use super::*;
     use actix_web::{App, http::{self, header::ContentType}, test};
+    use crate::domain::models::{Operator, Rule};
 
     #[actix_web::test]
     async fn test_find() {
@@ -57,6 +63,32 @@ mod tests {
         let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
         assert_eq!(resp.name, "sample_flag");
         assert_eq!(resp.label, "Sample Flag");
+        assert_eq!(resp.enabled, false);
+    }
+
+    #[actix_web::test]
+    async fn test_create() {
+        let app= test::init_service(
+            App::new().service(create_scope())
+        ).await;
+        let flag = FeatureFlag {
+            id: None,
+            name: "sample_flag".to_string(),
+            label: "Sample Flag".to_string(),
+            enabled: true,
+            rules: vec![
+                Rule {
+                    parameter: "tenant".to_string(),
+                    operator: Operator::Is("tenant_1".to_string()),
+                }
+            ]
+        };
+        let req = test::TestRequest::post().uri("/feature_flags").set_json(
+            Json(flag)
+        ).to_request();
+        let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
+        assert_eq!(resp.name, "sample_flag");
+        assert_eq!(resp.rules.len(), 1);
     }
 
 }

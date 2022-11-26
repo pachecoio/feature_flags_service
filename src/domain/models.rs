@@ -5,15 +5,18 @@ use serde_json::{Map, Value};
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FeatureFlag {
-    pub(crate) name: String,
-    pub(crate) label: String,
-    enabled: bool,
-    rules: Vec<Rule>
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub name: String,
+    pub label: String,
+    pub enabled: bool,
+    pub rules: Vec<Rule>
 }
 
 impl FeatureFlag {
     pub fn new(name: &str, label: &str) -> Self {
         FeatureFlag {
+            id: None,
             name: name.to_string(),
             label: label.to_string(),
             enabled: false,
@@ -24,6 +27,8 @@ impl FeatureFlag {
 
 #[derive(Serialize, Deserialize)]
 pub struct Environment {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub name: String,
     pub flags: HashSet<FeatureFlag>
 }
@@ -31,6 +36,7 @@ pub struct Environment {
 impl Environment {
     pub fn new(name: &str) -> Self {
         Environment {
+            id: None,
             name: name.to_string(),
             flags: HashSet::new(),
         }
