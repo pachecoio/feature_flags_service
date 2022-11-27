@@ -4,6 +4,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 pub mod feature_flags_api;
+mod environments_api;
 
 #[derive(Error, Debug)]
 enum CustomError {
@@ -17,6 +18,8 @@ enum CustomError {
     ApplicationError,
     #[error("Conflict")]
     Conflict,
+    #[error("No Content")]
+    NoContent,
 }
 
 impl CustomError {
@@ -27,6 +30,7 @@ impl CustomError {
             Self::Unknown => "Unknown".to_string(),
             Self::ApplicationError => "ApplicationError".to_string(),
             Self::Conflict => "Conflict".to_string(),
+            Self::NoContent => "NoContent".to_string(),
         }
     }
 }
@@ -39,6 +43,7 @@ impl ResponseError for CustomError {
             Self::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ApplicationError => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Conflict => StatusCode::CONFLICT,
+            Self::NoContent => StatusCode::NO_CONTENT,
         }
     }
 

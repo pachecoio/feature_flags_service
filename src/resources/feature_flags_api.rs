@@ -1,5 +1,5 @@
 use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
-use crate::domain::models::FeatureFlag;
+use crate::domain::models::{FeatureFlag, Rule};
 use crate::resources::CustomError;
 use crate::services::{feature_flag_handlers};
 use crate::AppState;
@@ -53,6 +53,20 @@ async fn create(
     }
 }
 
+async fn update(
+    data: web::Data<AppState>,
+    body: Json<FeatureFlagUpdateSchema>,
+    id: web::Path<String>,
+) -> Result<HttpResponse, CustomError> {
+    let db = &data.db;
+    let repo = feature_flags_repository_factory(db).await;
+    let flag_id = id.into_inner();
+    match feature_flag_handlers::update(&repo, &flag_id, &body.label).await {
+        Ok(id) => Ok(HttpResponse::Accepted().finish()),
+        Err(_) => Err(CustomError::Conflict),
+    }
+}
+
 async fn delete(
     data: web::Data<AppState>,
     id: web::Path<String>,
@@ -61,7 +75,7 @@ async fn delete(
     let repo = feature_flags_repository_factory(db).await;
     let flag_id = id.into_inner();
     match feature_flag_handlers::delete(&repo, &flag_id).await {
-        Ok(_) => Ok(HttpResponse::Accepted().finish()),
+        Ok(_) => Ok(HttpResponse::NoContent().finish()),
         Err(_) => Err(CustomError::NotFound),
     }
 }
@@ -72,11 +86,17 @@ pub fn create_scope() -> Scope {
         .route("/{id}", web::get().to(get))
         .route("", web::post().to(create))
         .route("/{id}", web::delete().to(delete))
+        .route("/{id}", web::put().to(update))
 }
 
 #[derive(Serialize, Deserialize)]
 struct FeatureFlagList {
     items: Vec<FeatureFlag>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct FeatureFlagUpdateSchema {
+    label: String,
 }
 
 #[cfg(test)]
@@ -109,24 +129,39 @@ mod tests {
         .await;
         let flag = FeatureFlag::new("sample_flag", "Sample Flag");
 
+        // Create flag
         let req = test::TestRequest::post()
             .uri("/feature_flags")
             .set_json(Json(flag))
             .to_request();
         let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
+        let id = resp.id.unwrap().to_string();
         assert_eq!(resp.name, "sample_flag");
         assert_eq!(resp.label, "Sample Flag");
 
+        // Get by id
         let req = test::TestRequest::get()
-            .uri(&format!("/feature_flags/{}", resp.id.unwrap().to_string()))
+            .uri(&format!("/feature_flags/{}", &id))
             .to_request();
         let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
         assert_eq!(resp.name, "sample_flag");
 
-        let req = test::TestRequest::delete()
-            .uri(&format!("/feature_flags/{}", resp.id.unwrap().to_string()))
+        // Test update
+        let update_flag = FeatureFlagUpdateSchema {
+            label: "Updated Label".to_string(),
+        };
+        let req = test::TestRequest::put()
+            .uri(&format!("/feature_flags/{}", &id))
+            .set_json(Json(update_flag))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert_eq!(resp.status(), StatusCode::ACCEPTED)
+        assert_eq!(resp.status(), StatusCode::ACCEPTED);
+
+        // Delete item
+        let req = test::TestRequest::delete()
+            .uri(&format!("/feature_flags/{}", &id))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT)
     }
 }

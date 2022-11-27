@@ -2,7 +2,25 @@ use crate::adapters::repositories::environment_repository::{EnvironmentRepositor
 use crate::adapters::repositories::BaseRepository;
 use crate::domain::models::Environment;
 use crate::services::ServiceError;
-use mongodb::bson::doc;
+use mongodb::bson::{doc, to_document};
+use serde::{Serialize};
+
+pub async fn find(
+    repo: &EnvironmentRepository<Environment>,
+    filters: impl Into<Option<Filters>> + Send,
+) -> Result<Vec<Environment>, ServiceError> {
+    let _filters = match filters.into() {
+        None => doc! {},
+        Some(f) => to_document(&f).unwrap(),
+    };
+    let res = repo.find(_filters).await;
+    match res {
+        Ok(res) => Ok(res),
+        Err(e) => Err(ServiceError {
+            message: e.to_string(),
+        }),
+    }
+}
 
 pub async fn create(
     repo: &EnvironmentRepository<Environment>,
@@ -78,6 +96,12 @@ pub async fn delete(
             message: e.to_string(),
         }),
     }
+}
+
+#[derive(Serialize, Debug)]
+pub struct Filters {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
 #[cfg(test)]

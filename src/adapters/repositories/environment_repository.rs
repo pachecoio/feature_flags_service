@@ -64,7 +64,7 @@ mod tests {
     use super::*;
     use crate::adapters::repositories::BaseRepository;
     use crate::database::init_db;
-    use crate::domain::models::{FeatureFlag, Operator, Rule};
+    use crate::domain::models::{FeatureFlag};
     use std::collections::HashSet;
 
     #[actix_web::test]
