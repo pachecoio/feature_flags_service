@@ -1,12 +1,14 @@
+use std::future::Future;
 use actix_web::{HttpResponse, Scope, web};
 use actix_web::web::Json;
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 use crate::adapters::repositories::environment_repository::environment_repository_factory;
+use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
 use crate::AppState;
 use crate::domain::models::{Environment, FeatureFlag};
 use crate::resources::CustomError;
-use crate::services::environment_handlers;
+use crate::services::{environment_handlers, feature_flag_handlers, ServiceError};
 
 
 async fn find(data: web::Data<AppState>) -> Result<HttpResponse, CustomError> {
@@ -73,6 +75,51 @@ async fn delete(
     }
 }
 
+async fn set_flag(
+    data: web::Data<AppState>,
+    id: web::Path<String>,
+    body: Json<FeatureFlag>,
+) -> Result<HttpResponse, CustomError> {
+    let db = &data.db;
+    let repo = environment_repository_factory(db).await;
+    let flag_repo = feature_flags_repository_factory(db).await;
+
+    let new_flag = FeatureFlag {
+        id: None,
+        name: body.name.clone(),
+        label: body.label.clone(),
+        enabled: body.enabled,
+        rules: body.rules.clone(),
+    };
+
+    let env_id = id.into_inner();
+    match environment_handlers::get(&repo, &env_id).await {
+        Ok(mut env) => {
+            match feature_flag_handlers::find(&flag_repo, feature_flag_handlers::Filters {
+                name: Option::from(body.name.to_string()),
+                label: None
+            }).await {
+                Ok(flags) => {
+                    if flags.is_empty() {
+                        return Err(CustomError::NotFound)
+                    }
+                    env.id = Option::from(ObjectId::parse_str(&env_id).expect(""));
+                    env.add_flag(&new_flag);
+                    match environment_handlers::update(&repo, &env_id, &env).await {
+                        Ok(_) => Ok(HttpResponse::Ok().json(env)),
+                        Err(_) => Err(CustomError::ApplicationError)
+                    }
+                },
+                Err(_) => {
+                    return Err(CustomError::NotFound);
+                }
+            }
+        }
+        Err(err) => Err(CustomError::NotFound)
+    }
+
+    // environment_handlers::update(&repo, &env)
+}
 
 pub fn create_scope() -> Scope {
     web::scope("/environments")
@@ -80,6 +127,7 @@ pub fn create_scope() -> Scope {
         .route("/{id}", web::get().to(get))
         .route("", web::post().to(create))
         .route("/{id}", web::delete().to(delete))
+        .route("/{id}/flags", web::put().to(set_flag))
 }
 
 
@@ -91,9 +139,11 @@ mod tests {
     use mongodb::bson::doc;
     use serde_json::json;
     use crate::adapters::repositories::environment_repository::environment_repository_factory;
+    use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
     use crate::AppState;
     use crate::database::init_db;
     use crate::domain::models::Environment;
+    use crate::resources::feature_flags_api;
     use super::*;
 
     #[actix_web::test]
@@ -115,7 +165,7 @@ mod tests {
     }
 
     #[actix_web::test]
-    async fn test_create_environment() {
+    async fn test_environment_integration() {
         let db = init_db().await.unwrap();
         let repo = environment_repository_factory(&db).await;
         repo.collection.delete_many(doc! {}, None).await.unwrap();
@@ -128,6 +178,7 @@ mod tests {
                 .service(create_scope()),
         )
         .await;
+        // Create a new environment
         let env = Environment::new("development");
         let req = test::TestRequest::post()
             .uri("/environments")
@@ -135,16 +186,77 @@ mod tests {
         let resp: Environment = test::call_and_read_body_json(&app, req).await;
         assert_eq!(resp.name, "development");
 
+        // Get env by id
         let req = test::TestRequest::get()
             .uri(&format!("/environments/{}", resp.id.unwrap().to_string()))
             .to_request();
         let resp: Environment = test::call_and_read_body_json(&app, req).await;
         assert_eq!(resp.name, "development");
 
+        // Delete env
         let req = test::TestRequest::delete()
             .uri(&format!("/environments/{}", resp.id.unwrap()))
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::NO_CONTENT);
     }
+
+    #[actix_web::test]
+    async fn test_env_manage_flags() {
+        let db = init_db().await.unwrap();
+        let repo = environment_repository_factory(&db).await;
+        repo.collection.delete_many(doc! {}, None).await.unwrap();
+        let flag_repo = feature_flags_repository_factory(&db).await;
+        flag_repo.collection.delete_many(doc! {}, None).await.unwrap();
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState {
+                    app_name: String::from("Feature Flags"),
+                    db: db.clone(),
+                }))
+                .service(create_scope())
+                .service(feature_flags_api::create_scope()),
+        )
+        .await;
+
+        // Create flag
+        let flag = FeatureFlag::new("flag_to_be_added", "Sample Flag");
+        let req = test::TestRequest::post()
+            .uri("/feature_flags")
+            .set_json(Json(flag.clone()))
+            .to_request();
+        let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
+        let flag_id = resp.id.unwrap().to_string();
+
+        // Create env
+        let env = Environment::new("test_env_integration");
+        let req = test::TestRequest::post()
+            .uri("/environments")
+            .set_json(Json(env))
+            .to_request();
+        let resp: Environment = test::call_and_read_body_json(&app, req).await;
+
+        let env_id = resp.id.unwrap().to_string();
+        // Add flag to env
+        let req = test::TestRequest::put()
+            .uri(&format!("/environments/{}/flags", env_id))
+            .set_json(Json(flag))
+            .to_request();
+        let resp: Environment = test::call_and_read_body_json(&app, req).await;
+        assert_eq!(resp.flags.len(), 1);
+
+        // Delete env
+        let req = test::TestRequest::delete()
+            .uri(&format!("/environments/{}", &env_id))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+
+        // Delete item
+        let req = test::TestRequest::delete()
+            .uri(&format!("/feature_flags/{}", &flag_id))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+    }
+
 }
