@@ -1,18 +1,15 @@
-use actix_web::web::Data;
 use crate::adapters::repositories::{
-    init_collection, BaseRepository, ErrorKind, Repository, RepositoryError,
+    init_collection, BaseRepository, ErrorKind, RepositoryError,
 };
 use crate::domain::models::FeatureFlag;
 use mongodb::bson::{doc, to_document};
 use mongodb::{Collection, Database};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-
 use async_trait::async_trait;
-use crate::database::init_db;
 
 pub async fn feature_flags_repository_factory(db: &Database) -> FeatureFlagRepository<FeatureFlag> {
-    FeatureFlagRepository::<FeatureFlag>::new(&db, "feature_flags").await
+    FeatureFlagRepository::<FeatureFlag>::new(db, "feature_flags").await
 }
 
 pub struct FeatureFlagRepository<T> {
@@ -67,6 +64,7 @@ mod test_flag_definition_repository {
     use super::*;
     use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
     use crate::adapters::repositories::BaseRepository;
+    use crate::database::init_db;
 
     #[actix_web::test]
     async fn repo_create() {

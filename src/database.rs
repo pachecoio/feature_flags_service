@@ -1,6 +1,6 @@
 use dotenv;
 use mongodb::options::ClientOptions;
-use mongodb::{Client, Database, error::Error};
+use mongodb::{error::Error, Client, Database};
 use serde::{Deserialize, Serialize};
 use std::env;
 

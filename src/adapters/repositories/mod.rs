@@ -1,6 +1,5 @@
-pub mod feature_flags_repository;
 pub mod environment_repository;
-use crate::database::init_db;
+pub mod feature_flags_repository;
 use async_trait::async_trait;
 use futures::stream::TryStreamExt;
 use mongodb::bson::oid::ObjectId;
@@ -31,11 +30,11 @@ where
     }
 
     async fn get(&self, id: &str) -> Result<T, RepositoryError> {
-        let obj_id = match ObjectId::parse_str(id.to_string()) {
+        let obj_id = match ObjectId::parse_str(id) {
             Ok(entity_id) => entity_id,
             Err(err) => {
                 return Err(RepositoryError {
-                    message: format!("Invalid entity id. Error: {}", err),
+                    message: err.to_string(),
                     kind: ErrorKind::NotFound,
                 })
             }
@@ -44,19 +43,22 @@ where
         match self.collection().find_one(filter, None).await {
             Ok(res) => match res {
                 None => Err(RepositoryError {
-                    message: format!("Entity not found"),
+                    message: "Entity not found".to_string(),
                     kind: ErrorKind::NotFound,
                 }),
                 Some(item) => Ok(item),
             },
             Err(err) => Err(RepositoryError {
-                message: format!("Error fetching entity. Error: {}", err.to_string()),
+                message: err.to_string(),
                 kind: ErrorKind::NotFound,
             }),
         }
     }
 
-    async fn find(&self, filter: impl Into<Option<Document>> + Send) -> Result<Vec<T>, RepositoryError> {
+    async fn find(
+        &self,
+        filter: impl Into<Option<Document>> + Send,
+    ) -> Result<Vec<T>, RepositoryError> {
         match self.collection().find(filter, None).await {
             Ok(mut cursors) => {
                 let mut res = Vec::<T>::new();
@@ -68,10 +70,12 @@ where
                     res.push(f)
                 }
                 Ok(res)
-            },
-            Err(err) => Err(RepositoryError { message: err.to_string(), kind: ErrorKind::NotFound })
+            }
+            Err(err) => Err(RepositoryError {
+                message: err.to_string(),
+                kind: ErrorKind::NotFound,
+            }),
         }
-
     }
 
     async fn update(&self, id: &str, entity: &T) -> Result<(), Error> {

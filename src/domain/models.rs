@@ -1,7 +1,7 @@
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet};
 use std::hash::Hash;
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
@@ -85,7 +85,7 @@ impl Rule {
                         return false;
                     }
                 }
-                return true;
+                true
             }
             _ => false,
         }

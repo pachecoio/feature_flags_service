@@ -1,5 +1,5 @@
 use crate::adapters::repositories::{
-    init_collection, BaseRepository, ErrorKind, Repository, RepositoryError,
+    init_collection, BaseRepository, ErrorKind, RepositoryError,
 };
 use crate::domain::models::Environment;
 use async_trait::async_trait;
@@ -63,9 +63,9 @@ where
 mod tests {
     use super::*;
     use crate::adapters::repositories::BaseRepository;
+    use crate::database::init_db;
     use crate::domain::models::{FeatureFlag, Operator, Rule};
     use std::collections::HashSet;
-    use crate::database::init_db;
 
     #[actix_web::test]
     async fn test_environment_repository() {
