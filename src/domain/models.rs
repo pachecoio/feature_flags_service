@@ -56,6 +56,16 @@ impl Environment {
             .collect();
     }
 
+
+    pub fn remove_flag_by_name(&mut self, flag_name: &str) {
+        self.flags = self
+            .flags
+            .clone()
+            .into_iter()
+            .filter(|f| f.name != flag_name)
+            .collect();
+    }
+
     pub fn set_flags(&mut self, flags: HashSet<FeatureFlag>) {
         self.flags = flags;
     }

@@ -1,8 +1,10 @@
+use futures::StreamExt;
 use crate::adapters::repositories::environment_repository::{EnvironmentRepository};
 use crate::adapters::repositories::BaseRepository;
-use crate::domain::models::Environment;
+use crate::domain::models::{Environment, FeatureFlag};
 use crate::services::ServiceError;
 use mongodb::bson::{doc, to_document};
+use mongodb::bson::oid::ObjectId;
 use serde::{Serialize};
 
 pub async fn find(
@@ -98,6 +100,46 @@ pub async fn delete(
     }
 }
 
+pub async fn set_flag(
+    repo: &EnvironmentRepository<Environment>,
+    id: &str,
+    flag: &FeatureFlag
+) -> Result<Environment, ServiceError> {
+    match get(&repo, id).await {
+        Ok(mut env) => {
+            env.add_flag(flag);
+            env.id = Option::from(ObjectId::parse_str(&id).unwrap());
+            match repo.update(id, &env).await {
+                Ok(_) => Ok(env),
+                Err(e) => Err(ServiceError {
+                    message: e.to_string(),
+                })
+            }
+        }
+        Err(e) => Err(e)
+    }
+}
+
+pub async fn remove_flag(
+    repo: &EnvironmentRepository<Environment>,
+    id: &str,
+    flag_name: &str
+) -> Result<Environment, ServiceError> {
+    match get(&repo, id).await {
+        Ok(mut env) => {
+            env.remove_flag_by_name(&flag_name);
+            env.id = Option::from(ObjectId::parse_str(&id).unwrap());
+            match repo.update(id, &env).await {
+                Ok(_) => Ok(env),
+                Err(e) => Err(ServiceError {
+                    message: e.to_string(),
+                })
+            }
+        }
+        Err(e) => Err(e)
+    }
+}
+
 #[derive(Serialize, Debug)]
 pub struct Filters {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -107,9 +149,11 @@ pub struct Filters {
 #[cfg(test)]
 mod tests {
     use crate::adapters::repositories::environment_repository::environment_repository_factory;
+    use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
     use super::*;
     use crate::database::init_db;
     use crate::domain::models::FeatureFlag;
+    use crate::services::feature_flag_handlers;
 
     #[actix_web::test]
     async fn test_create() {
@@ -144,5 +188,40 @@ mod tests {
             }
             Err(_) => {}
         }
+    }
+
+    #[actix_web::test]
+    async fn test_manage_flags() {
+        let db = init_db().await.unwrap();
+        let repo = environment_repository_factory(&db).await;
+
+        let inserted_id = create(&repo, "services_test_env").await.unwrap();
+
+        let flag_repo = feature_flags_repository_factory(&db).await;
+        let inserted_flag_id = feature_flag_handlers::create(
+            &flag_repo,
+            "flag_to_be_managed",
+            "Flag to be managed",
+        ).await.unwrap();
+
+        let flag = FeatureFlag::new(
+            "flag_to_be_managed",
+            "Flag to be managed",
+        );
+
+        let res = set_flag(&repo, &inserted_id, &flag).await;
+        assert!(res.is_ok());
+
+        let res = get(&repo, &inserted_id).await.unwrap();
+        assert_eq!(res.flags.len(), 1);
+
+        let res = remove_flag(&repo, &inserted_id, "flag_to_be_managed").await;
+        assert!(res.is_ok());
+
+        let res = get(&repo, &inserted_id).await.unwrap();
+        assert_eq!(res.flags.len(), 0);
+
+        delete(&repo, &inserted_id).await.unwrap();
+        flag_repo.collection.delete_one(doc! {"name": "flag_to_be_managed"}, None).await.unwrap();
     }
 }

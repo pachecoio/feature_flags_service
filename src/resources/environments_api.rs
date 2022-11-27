@@ -78,11 +78,10 @@ async fn delete(
 async fn set_flag(
     data: web::Data<AppState>,
     id: web::Path<String>,
-    body: Json<FeatureFlag>,
+    body: Json<FeatureFlag>
 ) -> Result<HttpResponse, CustomError> {
     let db = &data.db;
     let repo = environment_repository_factory(db).await;
-    let flag_repo = feature_flags_repository_factory(db).await;
 
     let new_flag = FeatureFlag {
         id: None,
@@ -93,32 +92,25 @@ async fn set_flag(
     };
 
     let env_id = id.into_inner();
-    match environment_handlers::get(&repo, &env_id).await {
-        Ok(mut env) => {
-            match feature_flag_handlers::find(&flag_repo, feature_flag_handlers::Filters {
-                name: Option::from(body.name.to_string()),
-                label: None
-            }).await {
-                Ok(flags) => {
-                    if flags.is_empty() {
-                        return Err(CustomError::NotFound)
-                    }
-                    env.id = Option::from(ObjectId::parse_str(&env_id).expect(""));
-                    env.add_flag(&new_flag);
-                    match environment_handlers::update(&repo, &env_id, &env).await {
-                        Ok(_) => Ok(HttpResponse::Ok().json(env)),
-                        Err(_) => Err(CustomError::ApplicationError)
-                    }
-                },
-                Err(_) => {
-                    return Err(CustomError::NotFound);
-                }
-            }
-        }
-        Err(err) => Err(CustomError::NotFound)
+    match environment_handlers::set_flag(&repo, &env_id, &new_flag).await {
+        Ok(env) => Ok(HttpResponse::Accepted().json(Json(env))),
+        Err(_) => Err(CustomError::NotFound)
+    }
+}
+
+async fn remove_flag(
+    data: web::Data<AppState>,
+    path: web::Path<(String, String)>,
+) -> Result<HttpResponse, CustomError> {
+    let db = &data.db;
+    let repo = environment_repository_factory(db).await;
+    let (env_id, flag_name) = path.into_inner();
+
+    match environment_handlers::remove_flag(&repo, &env_id, &flag_name).await {
+        Ok(env) => Ok(HttpResponse::Accepted().json(Json(env))),
+        Err(_) => Err(CustomError::NotFound)
     }
 
-    // environment_handlers::update(&repo, &env)
 }
 
 pub fn create_scope() -> Scope {
@@ -128,6 +120,7 @@ pub fn create_scope() -> Scope {
         .route("", web::post().to(create))
         .route("/{id}", web::delete().to(delete))
         .route("/{id}/flags", web::put().to(set_flag))
+        .route("/{id}/flags/{name}", web::delete().to(remove_flag))
 }
 
 
@@ -238,6 +231,13 @@ mod tests {
             .to_request();
         let resp: Environment = test::call_and_read_body_json(&app, req).await;
         assert_eq!(resp.flags.len(), 1);
+
+        // Remove flag from env
+        let req = test::TestRequest::delete()
+            .uri(&format!("/environments/{}/flags/{}", &env_id, "flag_to_be_added"))
+            .to_request();
+        let resp: Environment = test::call_and_read_body_json(&app, req).await;
+        assert_eq!(resp.flags.len(), 0);
 
         // Delete env
         let req = test::TestRequest::delete()
