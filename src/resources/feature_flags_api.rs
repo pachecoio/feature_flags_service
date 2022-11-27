@@ -116,8 +116,6 @@ mod tests {
     #[actix_web::test]
     async fn test_feature_flag_resource() {
         let db = init_db().await.unwrap();
-        let repo = feature_flags_repository_factory(&db).await;
-        repo.collection.delete_many(doc! {}, None).await.unwrap();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(AppState {
@@ -127,7 +125,7 @@ mod tests {
                 .service(create_scope()),
         )
         .await;
-        let flag = FeatureFlag::new("sample_flag", "Sample Flag");
+        let flag = FeatureFlag::new("sample_flag_integration_test", "Sample Flag");
 
         // Create flag
         let req = test::TestRequest::post()
@@ -136,7 +134,7 @@ mod tests {
             .to_request();
         let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
         let id = resp.id.unwrap().to_string();
-        assert_eq!(resp.name, "sample_flag");
+        assert_eq!(resp.name, "sample_flag_integration_test");
         assert_eq!(resp.label, "Sample Flag");
 
         // Get by id
@@ -144,7 +142,7 @@ mod tests {
             .uri(&format!("/feature_flags/{}", &id))
             .to_request();
         let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
-        assert_eq!(resp.name, "sample_flag");
+        assert_eq!(resp.name, "sample_flag_integration_test");
 
         // Test update
         let update_flag = FeatureFlagUpdateSchema {
