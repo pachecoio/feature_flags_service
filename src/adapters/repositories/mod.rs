@@ -96,7 +96,7 @@ where
             ObjectId::parse_str(id).expect("Error parsing id as ObjectID, id should be a string");
         let filter = doc! {"_id": obj_id};
         self.collection()
-            .delete_one(filter, None)
+            .find_one_and_delete(filter, None)
             .await
             .ok()
             .unwrap();

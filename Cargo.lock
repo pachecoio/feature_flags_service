@@ -800,11 +800,13 @@ dependencies = [
  "actix-web",
  "async-std",
  "async-trait",
+ "derive_more",
  "dotenv",
  "futures",
  "mongodb",
  "serde",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]

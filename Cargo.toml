@@ -13,6 +13,8 @@ dotenv = "0.15.0"
 async-std = "1.12.0"
 futures = "0.3.25"
 async-trait = "0.1.58"
+derive_more = "0.99.17"
+thiserror = "1.0.37"
 
 [dependencies.mongodb]
 version = "2.3.1"
