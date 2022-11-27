@@ -44,6 +44,7 @@ impl Environment {
     }
 
     pub fn add_flag(&mut self, flag: &FeatureFlag) {
+        self.flags = self.flags.clone().into_iter().filter(|f| f.name != flag.name).collect();
         self.flags.insert(flag.clone());
     }
 

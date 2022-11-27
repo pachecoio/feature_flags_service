@@ -4,7 +4,7 @@ mod domain;
 mod resources;
 mod services;
 use crate::database::init_db;
-use crate::resources::feature_flags_api;
+use crate::resources::{feature_flags_api, environments_api};
 use actix_web::{web, App, HttpServer};
 use mongodb::Database;
 
@@ -23,6 +23,7 @@ async fn main() -> std::io::Result<()> {
                 db: db.clone(),
             }))
             .service(feature_flags_api::create_scope())
+            .service(environments_api::create_scope())
     })
     .bind(("127.0.0.1", 8080))?
     .run()

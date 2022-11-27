@@ -4,7 +4,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 pub mod feature_flags_api;
-mod environments_api;
+pub mod environments_api;
 
 #[derive(Error, Debug)]
 enum CustomError {
