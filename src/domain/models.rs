@@ -15,13 +15,13 @@ pub struct FeatureFlag {
 }
 
 impl FeatureFlag {
-    pub fn new(name: &str, label: &str) -> Self {
+    pub fn new(name: &str, label: &str, enabled: bool, rules: Vec<Rule>) -> Self {
         FeatureFlag {
             id: None,
             name: name.to_string(),
             label: label.to_string(),
-            enabled: false,
-            rules: Vec::new(),
+            enabled,
+            rules,
         }
     }
 }
@@ -128,7 +128,12 @@ mod tests {
 
     #[test]
     fn test_feature_flag_instance() {
-        let flag = FeatureFlag::new("sample_flag", "Sample Flag");
+        let flag = FeatureFlag::new(
+            "sample_flag",
+            "Sample Flag",
+            false,
+            vec![]
+        );
         assert_eq!(flag.name, "sample_flag");
     }
 
@@ -142,7 +147,12 @@ mod tests {
     #[test]
     fn test_environment_add_flag() {
         let mut env = Environment::new("development");
-        let flag = FeatureFlag::new("sample_flag", "Sample Flag");
+        let flag = FeatureFlag::new(
+            "sample_flag",
+            "Sample Flag",
+            false,
+            vec![]
+        );
         env.add_flag(&flag);
         env.add_flag(&flag); // Should not add repeated flag
         assert_eq!(env.flags.len(), 1);
@@ -154,7 +164,12 @@ mod tests {
     #[test]
     fn test_environment_get_flags_from_context() {
         let mut env = Environment::new("development");
-        let flag = FeatureFlag::new("sample_flag", "Sample Flag");
+        let flag = FeatureFlag::new(
+            "sample_flag",
+            "Sample Flag",
+            false,
+            vec![]
+        );
         env.add_flag(&flag);
     }
 }

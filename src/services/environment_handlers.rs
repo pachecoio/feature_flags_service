@@ -178,7 +178,7 @@ mod tests {
         match res {
             Ok(id) => {
                 let mut env = Environment::new("services_test");
-                let flag = FeatureFlag::new("sample_flag", "Sample Flag");
+                let flag = FeatureFlag::new("sample_flag", "Sample Flag", true, vec![]);
                 env.add_flag(&flag);
                 update(&repo, &id, &env).await.unwrap();
                 let item = get(&repo, &id).await.unwrap();
@@ -202,11 +202,14 @@ mod tests {
             &flag_repo,
             "flag_to_be_managed",
             "Flag to be managed",
+            false,
+            &vec![]
         ).await.unwrap();
 
         let flag = FeatureFlag::new(
             "flag_to_be_managed",
             "Flag to be managed",
+            true, vec![]
         );
 
         let res = set_flag(&repo, &inserted_id, &flag).await;

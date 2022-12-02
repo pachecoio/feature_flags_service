@@ -207,7 +207,7 @@ mod tests {
         .await;
 
         // Create flag
-        let flag = FeatureFlag::new("flag_to_be_added", "Sample Flag");
+        let flag = FeatureFlag::new("flag_to_be_added", "Sample Flag", true, vec![]);
         let req = test::TestRequest::post()
             .uri("/feature_flags")
             .set_json(Json(flag.clone()))

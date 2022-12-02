@@ -1,6 +1,6 @@
 use crate::adapters::repositories::feature_flags_repository::{FeatureFlagRepository};
 use crate::adapters::repositories::BaseRepository;
-use crate::domain::models::FeatureFlag;
+use crate::domain::models::{FeatureFlag, Rule};
 use crate::services::ServiceError;
 use mongodb::bson::{doc, to_document};
 use serde::Serialize;
@@ -9,8 +9,18 @@ pub async fn create(
     repo: &FeatureFlagRepository<FeatureFlag>,
     name: &str,
     label: &str,
+    enabled: bool,
+    rules: &Vec<Rule>,
 ) -> Result<String, ServiceError> {
-    let inserted_id = repo.create(&FeatureFlag::new(name, label)).await;
+    let inserted_id = repo.create(
+        &FeatureFlag {
+            id: None,
+            name: name.to_string(),
+            label: label.to_string(),
+            enabled,
+            rules: rules.to_vec(),
+        }
+    ).await;
     match inserted_id {
         Ok(id) => Ok(id),
         Err(e) => Err(ServiceError {
@@ -97,18 +107,34 @@ pub struct Filters {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
     use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
     use super::*;
     use crate::database::init_db;
+    use crate::domain::models::Operator;
 
     #[actix_web::test]
     async fn test_create() {
         let db = init_db().await.unwrap();
         let repo = feature_flags_repository_factory(&db).await;
-        let res = create(&repo, "test", "test").await;
+        let res = create(
+            &repo,
+            "test",
+            "test",
+            false,
+            &vec![
+                Rule {
+                    parameter: "tenant".to_string(),
+                    operator: Operator::Is("tenant1".to_string()),
+                }
+            ]
+        ).await;
         assert!(res.is_ok());
         match res {
             Ok(id) => {
+                let res = repo.get(&id).await.unwrap();
+                assert_eq!(res.name, "test");
+                assert_eq!(res.rules.len(), 1);
                 delete(&repo, &id).await.unwrap();
             }
             Err(_) => {}
@@ -119,7 +145,13 @@ mod tests {
     async fn test_update() {
         let db = init_db().await.unwrap();
         let repo = feature_flags_repository_factory(&db).await;
-        let res = create(&repo, "test", "test").await;
+        let res = create(
+            &repo,
+            "test",
+            "test",
+            false,
+            &vec![]
+        ).await;
         assert!(res.is_ok());
         match res {
             Ok(id) => {

@@ -18,12 +18,7 @@ async fn find(data: web::Data<AppState>) -> Result<Json<FeatureFlagList>> {
     };
     Ok(Json(FeatureFlagList { items: flags }))
 }
-
-async fn get(
-    data: web::Data<AppState>,
-    id: web::Path<String>,
-) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+async fn get(data: web::Data<AppState>, id: web::Path<String>) -> Result<HttpResponse, CustomError> { let db = &data.db;
     let repo = feature_flags_repository_factory(db).await;
     let flag_id = id.into_inner();
     match feature_flag_handlers::get(&repo, &flag_id).await {
@@ -42,9 +37,16 @@ async fn create(
 ) -> Result<HttpResponse, CustomError> {
     let db = &data.db;
     let repo = feature_flags_repository_factory(db).await;
-    match feature_flag_handlers::create(&repo, &body.name, &body.label).await {
+    match feature_flag_handlers::create(
+        &repo, &body.name, &body.label, body.enabled, &body.rules,
+    ).await {
         Ok(id) => {
-            let mut flag = FeatureFlag::new(&body.name, &body.label);
+            let mut flag = FeatureFlag::new(
+                &body.name,
+                &body.label,
+                body.enabled,
+                body.rules.to_vec(),
+            );
             let flag_id = ObjectId::parse_str(id).expect("");
             flag.id = Some(flag_id);
             Ok(HttpResponse::Created().json(Json(flag)))
@@ -125,7 +127,18 @@ mod tests {
                 .service(create_scope()),
         )
         .await;
-        let flag = FeatureFlag::new("sample_flag_integration_test", "Sample Flag");
+        let flag = FeatureFlag {
+            id: None,
+            name: "sample_flag_integration_test".to_string(),
+            label: "Sample Flag".to_string(),
+            enabled: false,
+            rules: vec![
+                Rule {
+                    parameter: "tenant".to_string(),
+                    operator: Operator::Is("tenant1".to_string()),
+                }
+            ],
+        };
 
         // Create flag
         let req = test::TestRequest::post()
@@ -136,6 +149,7 @@ mod tests {
         let id = resp.id.unwrap().to_string();
         assert_eq!(resp.name, "sample_flag_integration_test");
         assert_eq!(resp.label, "Sample Flag");
+        assert_eq!(resp.rules.len(), 1);
 
         // Get by id
         let req = test::TestRequest::get()

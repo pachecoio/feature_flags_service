@@ -70,7 +70,7 @@ mod test_flag_definition_repository {
     async fn repo_create() {
         let db = init_db().await.unwrap();
         let repo = feature_flags_repository_factory(&db).await;
-        let entity = FeatureFlag::new("sample_flag", "Sample Flag");
+        let entity = FeatureFlag::new("sample_flag", "Sample Flag", true, vec![]);
         let res = repo.create(&entity).await;
         assert!(res.is_ok());
         if let Ok(id) = res {
@@ -96,11 +96,11 @@ mod test_flag_definition_repository {
     async fn repo_update() {
         let db = init_db().await.unwrap();
         let repo = feature_flags_repository_factory(&db).await;
-        let entity = FeatureFlag::new("flag_to_update", "Flag to update");
+        let entity = FeatureFlag::new("flag_to_update", "Flag to update", true, vec![]);
         let res = repo.create(&entity).await;
         let inserted_id = res.unwrap();
 
-        let entity_to_update = FeatureFlag::new("updated_flag", "Updated flag");
+        let entity_to_update = FeatureFlag::new("updated_flag", "Updated flag", true, vec![]);
         let res = repo.update(&inserted_id, &entity_to_update).await;
         assert!(res.is_ok());
         let updated_flag = res.unwrap();
@@ -115,7 +115,7 @@ mod test_flag_definition_repository {
     async fn repo_delete() {
         let db = init_db().await.unwrap();
         let repo = feature_flags_repository_factory(&db).await;
-        let entity = FeatureFlag::new("flag_to_delete", "Flag to Delete");
+        let entity = FeatureFlag::new("flag_to_delete", "Flag to Delete", true, vec![]);
         let res = repo.create(&entity).await;
         assert!(res.is_ok());
         let inserted_id = res.unwrap();

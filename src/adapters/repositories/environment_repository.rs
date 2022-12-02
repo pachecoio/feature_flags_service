@@ -107,7 +107,12 @@ mod tests {
         let repo = environment_repository_factory(&db).await;
         let mut environment = Environment::new("development");
 
-        let flag = FeatureFlag::new("sample_flag", "Sample Flag");
+        let flag = FeatureFlag::new(
+            "sample_flag",
+            "Sample Flag",
+            false,
+            vec![]
+        );
         environment.add_flag(&flag);
         let res = repo.create(&environment).await;
         if let Ok(inserted_id) = res {
@@ -122,7 +127,12 @@ mod tests {
         let repo = environment_repository_factory(&db).await;
         let mut environment = Environment::new("development");
 
-        let flag = FeatureFlag::new("sample_flag", "Sample Flag");
+        let flag = FeatureFlag::new(
+            "sample_flag",
+            "Sample Flag",
+            false,
+            vec![]
+        );
         environment.set_flags(HashSet::from([flag]));
         match repo.create(&environment).await {
             Ok(inserted_id) => {
