@@ -12,7 +12,10 @@ use crate::utils;
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FeatureFlag {
-    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "_id",
+        skip_serializing_if = "Option::is_none",
+    )]
     pub id: Option<ObjectId>,
     pub name: String,
     pub label: String,

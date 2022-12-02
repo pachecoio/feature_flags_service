@@ -67,14 +67,14 @@ pub async fn update(
     repo: &FeatureFlagRepository<FeatureFlag>,
     id: &str,
     label: &str,
+    enabled: bool,
+    rules: Vec<Rule>
 ) -> Result<(), ServiceError> {
     match repo.get(id).await {
         Ok(mut feature_flag) => {
-            if feature_flag.label == label {
-                return Ok(());
-            }
-
             feature_flag.label = label.to_string();
+            feature_flag.enabled = enabled;
+            feature_flag.rules = rules;
 
             match repo.update(id, &feature_flag).await {
                 Ok(_) => Ok(()),
@@ -112,6 +112,8 @@ pub struct Filters {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+    use actix_web::web::Json;
+    use mongodb::bson::Bson::DateTime;
     use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
     use super::*;
     use crate::database::init_db;
@@ -159,7 +161,7 @@ mod tests {
         assert!(res.is_ok());
         match res {
             Ok(id) => {
-                update(&repo, &id, "new_label").await.unwrap();
+                update(&repo, &id, "new_label", true, vec![]).await.unwrap();
                 let res = get(&repo, &id).await.unwrap();
                 assert_eq!(res.label, "new_label");
                 delete(&repo, &id).await.unwrap();

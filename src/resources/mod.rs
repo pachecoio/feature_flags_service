@@ -20,6 +20,8 @@ enum CustomError {
     Conflict,
     #[error("No Content")]
     NoContent,
+    #[error("Creation error")]
+    CreationError(String)
 }
 
 impl CustomError {
@@ -31,6 +33,7 @@ impl CustomError {
             Self::ApplicationError => "ApplicationError".to_string(),
             Self::Conflict => "Conflict".to_string(),
             Self::NoContent => "NoContent".to_string(),
+            Self::CreationError(err) => format!("Creation error: {}", err.to_string())
         }
     }
 }
@@ -44,6 +47,7 @@ impl ResponseError for CustomError {
             Self::ApplicationError => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Conflict => StatusCode::CONFLICT,
             Self::NoContent => StatusCode::NO_CONTENT,
+            Self::CreationError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

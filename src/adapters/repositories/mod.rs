@@ -8,7 +8,7 @@ use mongodb::error::Error;
 use mongodb::{Collection, Database};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, format, Formatter};
 
 #[async_trait]
 pub trait BaseRepository<T>
@@ -49,7 +49,7 @@ where
                 Some(item) => Ok(item),
             },
             Err(err) => Err(RepositoryError {
-                message: err.to_string(),
+                message: format!("Error getting entity: {}", err.to_string()),
                 kind: ErrorKind::NotFound,
             }),
         }

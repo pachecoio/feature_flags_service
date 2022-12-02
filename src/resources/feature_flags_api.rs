@@ -1,12 +1,14 @@
 use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
 use crate::domain::models::{FeatureFlag, Rule};
 use crate::resources::CustomError;
-use crate::services::{feature_flag_handlers};
+use crate::services::{feature_flag_handlers, ServiceError};
 use crate::AppState;
 use actix_web::web::Json;
 use actix_web::{web, HttpResponse, Result, Scope};
+use chrono::Utc;
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
+use crate::adapters::repositories::{ErrorKind, RepositoryError};
 
 async fn find(data: web::Data<AppState>) -> Result<Json<FeatureFlagList>> {
     let db = &data.db;
@@ -33,7 +35,7 @@ async fn get(data: web::Data<AppState>, id: web::Path<String>) -> Result<HttpRes
 
 async fn create(
     data: web::Data<AppState>,
-    body: Json<FeatureFlag>,
+    body: Json<FeatureFlagCreateSchema>,
 ) -> Result<HttpResponse, CustomError> {
     let db = &data.db;
     let repo = feature_flags_repository_factory(db).await;
@@ -41,15 +43,14 @@ async fn create(
         &repo, &body.name, &body.label, body.enabled, &body.rules,
     ).await {
         Ok(id) => {
-            let mut flag = FeatureFlag::new(
-                &body.name,
-                &body.label,
-                body.enabled,
-                body.rules.to_vec(),
-            );
-            let flag_id = ObjectId::parse_str(id).expect("");
-            flag.id = Some(flag_id);
-            Ok(HttpResponse::Created().json(Json(flag)))
+            match feature_flag_handlers::get(&repo, &id).await {
+                Ok(f) => {
+                    Ok(
+                        HttpResponse::Created().json(Json(f))
+                    )
+                },
+                Err(err) => Err(CustomError::ApplicationError)
+            }
         }
         Err(_) => Err(CustomError::Conflict),
     }
@@ -63,8 +64,15 @@ async fn update(
     let db = &data.db;
     let repo = feature_flags_repository_factory(db).await;
     let flag_id = id.into_inner();
-    match feature_flag_handlers::update(&repo, &flag_id, &body.label).await {
-        Ok(id) => Ok(HttpResponse::Accepted().finish()),
+    match feature_flag_handlers::update(&repo, &flag_id, &body.label, body.enabled, body.rules.to_vec()).await {
+        Ok(id) => {
+            match feature_flag_handlers::get(&repo, &flag_id).await {
+                Ok(f) => Ok(
+                    HttpResponse::Accepted().json(Json(f))
+                ),
+                Err(err) => Err(CustomError::ApplicationError)
+            }
+        },
         Err(_) => Err(CustomError::Conflict),
     }
 }
@@ -99,6 +107,16 @@ struct FeatureFlagList {
 #[derive(Serialize, Deserialize)]
 struct FeatureFlagUpdateSchema {
     label: String,
+    enabled: bool,
+    rules: Vec<Rule>
+}
+
+#[derive(Serialize, Deserialize)]
+struct FeatureFlagCreateSchema {
+    name: String,
+    label: String,
+    enabled: bool,
+    rules: Vec<Rule>
 }
 
 #[cfg(test)]
@@ -129,8 +147,7 @@ mod tests {
                 .service(create_scope()),
         )
         .await;
-        let flag = FeatureFlag {
-            id: None,
+        let flag = FeatureFlagCreateSchema {
             name: "sample_flag_integration_test".to_string(),
             label: "Sample Flag".to_string(),
             enabled: false,
@@ -140,8 +157,6 @@ mod tests {
                     operator: Operator::Is("tenant1".to_string()),
                 }
             ],
-            created_at: Utc::now(),
-            updated_at: Utc::now()
         };
 
         // Create flag
@@ -165,6 +180,8 @@ mod tests {
         // Test update
         let update_flag = FeatureFlagUpdateSchema {
             label: "Updated Label".to_string(),
+            enabled: true,
+            rules: vec![]
         };
         let req = test::TestRequest::put()
             .uri(&format!("/feature_flags/{}", &id))

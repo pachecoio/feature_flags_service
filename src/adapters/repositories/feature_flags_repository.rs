@@ -62,6 +62,7 @@ where
 #[cfg(test)]
 mod test_flag_definition_repository {
     use mongodb::bson;
+    use mongodb::bson::oid::ObjectId;
     use super::*;
     use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
     use crate::adapters::repositories::BaseRepository;
@@ -71,12 +72,19 @@ mod test_flag_definition_repository {
     async fn repo_create() {
         let db = init_db().await.unwrap();
         let repo = feature_flags_repository_factory(&db).await;
+        repo.collection.delete_many(doc! {}, None).await.unwrap();
         let entity = FeatureFlag::new("sample_flag", "Sample Flag", true, vec![]);
         let res = repo.create(&entity).await;
         assert!(res.is_ok());
         if let Ok(id) = res {
             let item = repo.get(&id).await;
-            assert!(item.is_ok());
+            match &item {
+                Ok(_) => {}
+                Err(err) => {
+                    assert_eq!(err.message, "")
+                }
+            }
+            assert!(&item.is_ok());
             let item = item.unwrap();
             assert_eq!(item.name, "sample_flag");
 
