@@ -3,6 +3,8 @@ mod database;
 mod domain;
 mod resources;
 mod services;
+mod utils;
+
 use crate::database::init_db;
 use crate::resources::{feature_flags_api, environments_api};
 use actix_web::{web, App, HttpServer};

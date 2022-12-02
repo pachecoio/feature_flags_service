@@ -61,6 +61,7 @@ where
 
 #[cfg(test)]
 mod test_flag_definition_repository {
+    use mongodb::bson;
     use super::*;
     use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
     use crate::adapters::repositories::BaseRepository;

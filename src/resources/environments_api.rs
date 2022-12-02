@@ -1,6 +1,8 @@
 use std::future::Future;
 use actix_web::{HttpResponse, Scope, web};
 use actix_web::web::Json;
+use chrono::Utc;
+use mongodb::bson;
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 use crate::adapters::repositories::environment_repository::environment_repository_factory;
@@ -89,6 +91,8 @@ async fn set_flag(
         label: body.label.clone(),
         enabled: body.enabled,
         rules: body.rules.clone(),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
     };
 
     let env_id = id.into_inner();

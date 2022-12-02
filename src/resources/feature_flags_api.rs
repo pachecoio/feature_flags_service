@@ -113,6 +113,8 @@ mod tests {
     };
     use mongodb::bson::doc;
     use std::process::id;
+    use chrono::Utc;
+    use mongodb::bson;
     use crate::database::init_db;
 
     #[actix_web::test]
@@ -138,6 +140,8 @@ mod tests {
                     operator: Operator::Is("tenant1".to_string()),
                 }
             ],
+            created_at: Utc::now(),
+            updated_at: Utc::now()
         };
 
         // Create flag

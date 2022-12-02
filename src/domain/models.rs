@@ -3,6 +3,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::{HashSet};
 use std::hash::Hash;
+use chrono::{DateTime, Utc, serde::ts_seconds::{
+    serialize as to_ts,
+    deserialize as from_ts,
+}};
+use mongodb::bson::serde_helpers;
+use crate::utils;
 
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FeatureFlag {
@@ -12,6 +18,11 @@ pub struct FeatureFlag {
     pub label: String,
     pub enabled: bool,
     pub rules: Vec<Rule>,
+
+    #[serde(with = "utils::date_format")]
+    pub created_at: DateTime<Utc>,
+    #[serde(with = "utils::date_format")]
+    pub updated_at: DateTime<Utc>
 }
 
 impl FeatureFlag {
@@ -22,6 +33,8 @@ impl FeatureFlag {
             label: label.to_string(),
             enabled,
             rules,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         }
     }
 }

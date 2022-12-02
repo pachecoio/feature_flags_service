@@ -1,3 +1,5 @@
+use chrono::Utc;
+use mongodb::bson;
 use crate::adapters::repositories::feature_flags_repository::{FeatureFlagRepository};
 use crate::adapters::repositories::BaseRepository;
 use crate::domain::models::{FeatureFlag, Rule};
@@ -19,6 +21,8 @@ pub async fn create(
             label: label.to_string(),
             enabled,
             rules: rules.to_vec(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         }
     ).await;
     match inserted_id {
@@ -135,6 +139,8 @@ mod tests {
                 let res = repo.get(&id).await.unwrap();
                 assert_eq!(res.name, "test");
                 assert_eq!(res.rules.len(), 1);
+                let items = find(&repo, None).await.unwrap();
+                assert_eq!(items.len(), 1);
                 delete(&repo, &id).await.unwrap();
             }
             Err(_) => {}

@@ -15,6 +15,7 @@ futures = "0.3.25"
 async-trait = "0.1.58"
 derive_more = "0.99.17"
 thiserror = "1.0.37"
+chrono = { version = "0.4.23", features = ["serde"] }
 
 [dependencies.mongodb]
 version = "2.3.1"
