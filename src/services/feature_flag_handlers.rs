@@ -123,8 +123,8 @@ mod tests {
         let repo = feature_flags_repository_factory(&db).await;
         let res = create(
             &repo,
-            "test",
-            "test",
+            "feature_flag_handlers_test",
+            "Feature Flag handlers test",
             false,
             &vec![
                 Rule {
@@ -137,10 +137,8 @@ mod tests {
         match res {
             Ok(id) => {
                 let res = repo.get(&id).await.unwrap();
-                assert_eq!(res.name, "test");
+                assert_eq!(res.name, "feature_flag_handlers_test");
                 assert_eq!(res.rules.len(), 1);
-                let items = find(&repo, None).await.unwrap();
-                assert_eq!(items.len(), 1);
                 delete(&repo, &id).await.unwrap();
             }
             Err(_) => {}
@@ -153,7 +151,7 @@ mod tests {
         let repo = feature_flags_repository_factory(&db).await;
         let res = create(
             &repo,
-            "test",
+            "feature_flag_handlers_test_update",
             "test",
             false,
             &vec![]
