@@ -119,7 +119,7 @@ async fn remove_flag(
 }
 
 pub fn create_scope() -> Scope {
-    web::scope("/environments")
+    web::scope("/admin/environments")
         .route("", web::get().to(find))
         .route("/{id}", web::get().to(get))
         .route("", web::post().to(create))
@@ -157,7 +157,7 @@ mod tests {
         .await;
         let env = Environment::new("development");
         let req = test::TestRequest::get()
-            .uri("/environments").to_request();
+            .uri("/admin/environments").to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
     }
@@ -177,21 +177,21 @@ mod tests {
         // Create a new environment
         let env = Environment::new("dev_integration_test");
         let req = test::TestRequest::post()
-            .uri("/environments")
+            .uri("/admin/environments")
             .set_json(Json(env)).to_request();
         let resp: Environment = test::call_and_read_body_json(&app, req).await;
         assert_eq!(resp.name, "dev_integration_test");
 
         // Get env by id
         let req = test::TestRequest::get()
-            .uri(&format!("/environments/{}", resp.id.unwrap().to_string()))
+            .uri(&format!("/admin/environments/{}", resp.id.unwrap().to_string()))
             .to_request();
         let resp: Environment = test::call_and_read_body_json(&app, req).await;
         assert_eq!(resp.name, "dev_integration_test");
 
         // Delete env
         let req = test::TestRequest::delete()
-            .uri(&format!("/environments/{}", resp.id.unwrap()))
+            .uri(&format!("/admin/environments/{}", resp.id.unwrap()))
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::NO_CONTENT);
@@ -214,7 +214,7 @@ mod tests {
         // Create flag
         let flag = FeatureFlag::new("flag_to_be_added", "Sample Flag", true, vec![]);
         let req = test::TestRequest::post()
-            .uri("/feature_flags")
+            .uri("/admin/feature_flags")
             .set_json(Json(flag.clone()))
             .to_request();
         let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
@@ -223,7 +223,7 @@ mod tests {
         // Create env
         let env = Environment::new("test_env_integration");
         let req = test::TestRequest::post()
-            .uri("/environments")
+            .uri("/admin/environments")
             .set_json(Json(env))
             .to_request();
         let resp: Environment = test::call_and_read_body_json(&app, req).await;
@@ -231,7 +231,7 @@ mod tests {
         let env_id = resp.id.unwrap().to_string();
         // Add flag to env
         let req = test::TestRequest::put()
-            .uri(&format!("/environments/{}/flags", env_id))
+            .uri(&format!("/admin/environments/{}/flags", env_id))
             .set_json(Json(flag))
             .to_request();
         let resp: Environment = test::call_and_read_body_json(&app, req).await;
@@ -239,20 +239,20 @@ mod tests {
 
         // Remove flag from env
         let req = test::TestRequest::delete()
-            .uri(&format!("/environments/{}/flags/{}", &env_id, "flag_to_be_added"))
+            .uri(&format!("/admin/environments/{}/flags/{}", &env_id, "flag_to_be_added"))
             .to_request();
         let resp: Environment = test::call_and_read_body_json(&app, req).await;
         assert_eq!(resp.flags.len(), 0);
 
         // Delete env
         let req = test::TestRequest::delete()
-            .uri(&format!("/environments/{}", &env_id))
+            .uri(&format!("/admin/environments/{}", &env_id))
             .to_request();
         let resp = test::call_service(&app, req).await;
 
         // Delete flag
         let req = test::TestRequest::delete()
-            .uri(&format!("/feature_flags/{}", &flag_id))
+            .uri(&format!("/admin/feature_flags/{}", &flag_id))
             .to_request();
         let resp = test::call_service(&app, req).await;
     }

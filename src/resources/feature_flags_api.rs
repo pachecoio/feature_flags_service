@@ -91,7 +91,7 @@ async fn delete(
 }
 
 pub fn create_scope() -> Scope {
-    web::scope("/feature_flags")
+    web::scope("/admin/feature_flags")
         .route("", web::get().to(find))
         .route("/{id}", web::get().to(get))
         .route("", web::post().to(create))
@@ -161,7 +161,7 @@ mod tests {
 
         // Create flag
         let req = test::TestRequest::post()
-            .uri("/feature_flags")
+            .uri("/admin/feature_flags")
             .set_json(Json(flag))
             .to_request();
         let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
@@ -172,7 +172,7 @@ mod tests {
 
         // Get by id
         let req = test::TestRequest::get()
-            .uri(&format!("/feature_flags/{}", &id))
+            .uri(&format!("/admin/feature_flags/{}", &id))
             .to_request();
         let resp: FeatureFlag = test::call_and_read_body_json(&app, req).await;
         assert_eq!(resp.name, "sample_flag_integration_test");
@@ -184,7 +184,7 @@ mod tests {
             rules: vec![]
         };
         let req = test::TestRequest::put()
-            .uri(&format!("/feature_flags/{}", &id))
+            .uri(&format!("/admin/feature_flags/{}", &id))
             .set_json(Json(update_flag))
             .to_request();
         let resp = test::call_service(&app, req).await;
@@ -192,7 +192,7 @@ mod tests {
 
         // Delete item
         let req = test::TestRequest::delete()
-            .uri(&format!("/feature_flags/{}", &id))
+            .uri(&format!("/admin/feature_flags/{}", &id))
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::NO_CONTENT)

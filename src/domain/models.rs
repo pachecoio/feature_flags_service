@@ -40,6 +40,17 @@ impl FeatureFlag {
             updated_at: Utc::now(),
         }
     }
+
+    pub fn is_context_valid(&self, context: &Map<String, Value>) -> bool {
+        let mut valid = true;
+        for rule in self.rules.iter() {
+            if !rule.check(context) {
+                valid = false;
+                break;
+            }
+        }
+        valid
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -73,7 +84,6 @@ impl Environment {
             .collect();
     }
 
-
     pub fn remove_flag_by_name(&mut self, flag_name: &str) {
         self.flags = self
             .flags
@@ -85,6 +95,14 @@ impl Environment {
 
     pub fn set_flags(&mut self, flags: HashSet<FeatureFlag>) {
         self.flags = flags;
+    }
+
+    pub fn get_flags_from_context(&self, context: &Map<String, Value>) -> Map<String, Value> {
+        let mut flags = Map::new();
+        for flag in self.flags.iter() {
+            flags.insert(flag.name.clone(), Value::Bool(flag.is_context_valid(context)));
+        }
+        flags
     }
 }
 
@@ -177,17 +195,6 @@ mod tests {
         assert_eq!(env.flags.len(), 0);
     }
 
-    #[test]
-    fn test_environment_get_flags_from_context() {
-        let mut env = Environment::new("development");
-        let flag = FeatureFlag::new(
-            "sample_flag",
-            "Sample Flag",
-            false,
-            vec![]
-        );
-        env.add_flag(&flag);
-    }
 }
 
 #[cfg(test)]
@@ -299,5 +306,44 @@ mod test_environment {
     use super::*;
 
     #[test]
-    fn test_environment_get_flags() {}
+    fn test_environment_get_flags_from_context() {
+        let mut env = Environment::new("development");
+        let flag_1 = FeatureFlag::new(
+            "flag_1",
+            "Flag 1",
+            true,
+            vec![
+                Rule {
+                    parameter: "tenant".to_string(),
+                    operator: Operator::Is("tenant_1".to_string()),
+                },
+                Rule {
+                    parameter: "user".to_string(),
+                    operator: Operator::IsOneOf(vec![
+                        "user_1".to_string(),
+                        "user_2".to_string(),
+                    ]),
+                },
+            ]
+        );
+        let flag_2 = FeatureFlag::new(
+            "flag_2",
+            "Flag 2",
+            true,
+            vec![
+                Rule {
+                    parameter: "custom_prop".to_string(),
+                    operator: Operator::IsNot("custom".to_string()),
+                },
+            ]
+        );
+        env.add_flag(&flag_1);
+        env.add_flag(&flag_2);
+
+        let mut context = Map::new();
+        context.insert("tenant".to_string(), Value::String("tenant_1".to_string()));
+        context.insert("user".to_string(), Value::String("user_1".to_string()));
+        let flags = env.get_flags_from_context(&context);
+        assert_eq!(flags.len(), 2);
+    }
 }

@@ -5,6 +5,7 @@ use thiserror::Error;
 
 pub mod feature_flags_api;
 pub mod environments_api;
+pub mod client_api;
 
 #[derive(Error, Debug)]
 enum CustomError {
