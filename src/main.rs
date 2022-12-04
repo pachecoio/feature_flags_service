@@ -21,14 +21,18 @@ async fn main() -> std::io::Result<()> {
     let db = init_db().await.unwrap();
     HttpServer::new(move || {
         let cors = Cors::default()
-              .allowed_origin("http://127.0.0.1:5173")
-              .allowed_origin_fn(|origin, _req_head| {
-                  origin.as_bytes().ends_with(b"127.0.0.1:5173")
-              })
-              .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
-              .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
-              .allowed_header(http::header::CONTENT_TYPE)
-              .max_age(3600);
+            .allowed_origin("http://127.0.0.1:5173")
+            .allowed_origin("http://localhost:5173")
+            .allowed_origin_fn(|origin, _req_head| {
+                origin.as_bytes().ends_with(b"127.0.0.1:5173")
+            })
+            .allowed_origin_fn(|origin, _req_head| {
+                origin.as_bytes().ends_with(b"localhost:5173")
+            })
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+            .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+            .allowed_header(http::header::CONTENT_TYPE)
+            .max_age(3600);
         App::new()
             .wrap(cors)
             .app_data(web::Data::new(AppState {

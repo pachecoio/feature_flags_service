@@ -11,6 +11,7 @@ use crate::AppState;
 use crate::domain::models::{Environment, FeatureFlag};
 use crate::resources::CustomError;
 use crate::services::{environment_handlers, feature_flag_handlers, ServiceError};
+use crate::resources::feature_flags_api::{FeatureFlagCreateSchema};
 
 
 async fn find(data: web::Data<AppState>) -> Result<HttpResponse, CustomError> {
@@ -80,7 +81,7 @@ async fn delete(
 async fn set_flag(
     data: web::Data<AppState>,
     id: web::Path<String>,
-    body: Json<FeatureFlag>
+    body: Json<FeatureFlagCreateSchema>
 ) -> Result<HttpResponse, CustomError> {
     let db = &data.db;
     let repo = environment_repository_factory(db).await;

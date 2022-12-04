@@ -112,11 +112,11 @@ struct FeatureFlagUpdateSchema {
 }
 
 #[derive(Serialize, Deserialize)]
-struct FeatureFlagCreateSchema {
-    name: String,
-    label: String,
-    enabled: bool,
-    rules: Vec<Rule>
+pub struct FeatureFlagCreateSchema {
+    pub(crate) name: String,
+    pub(crate) label: String,
+    pub(crate) enabled: bool,
+    pub(crate) rules: Vec<Rule>
 }
 
 #[cfg(test)]
