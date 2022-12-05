@@ -42,6 +42,9 @@ impl FeatureFlag {
     }
 
     pub fn is_context_valid(&self, context: &Map<String, Value>) -> bool {
+        if !self.enabled {
+            return false;
+        }
         let mut valid = true;
         for rule in self.rules.iter() {
             if !rule.check(context) {
