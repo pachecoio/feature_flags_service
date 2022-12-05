@@ -80,10 +80,10 @@ struct FeatureFlagsContextSchema {
 
 pub fn create_scope() -> Scope {
     web::scope("/flags")
-        .route("", web::get().to(
+        .route("", web::post().to(
             get_flags_from_context
         ))
-        .route("/{environment_name}", web::get().to(
+        .route("/{environment_name}", web::post().to(
             get_environment_flags_from_context
         ))
 }
@@ -155,7 +155,7 @@ mod tests {
         // Get flags from context
         let mut context = Map::new();
         context.insert("tenant".to_string(), Value::String("tenant1".to_string()));
-        let req = test::TestRequest::get()
+        let req = test::TestRequest::post()
             .uri("/flags")
             .set_json(Json(FeatureFlagsContextSchema {
                 context
@@ -264,7 +264,7 @@ mod tests {
         // Get flags from context
         let mut context = Map::new();
         context.insert("tenant".to_string(), Value::String("tenant1".to_string()));
-        let req = test::TestRequest::get()
+        let req = test::TestRequest::post()
             .uri("/flags/test_env_integration")
             .set_json(Json(FeatureFlagsContextSchema {
                 context
