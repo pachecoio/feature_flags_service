@@ -25,6 +25,7 @@ async fn main() -> std::io::Result<()> {
             .allowed_origin("http://localhost:5173")
             .allowed_origin("http://localhost")
             .allowed_origin("http://.*")
+            .allowed_origin("https://ff.pacheco.io")
             .allowed_origin_fn(|origin, _req_head| {
                 origin.as_bytes().ends_with(b"127.0.0.1:5173")
             })
@@ -33,6 +34,9 @@ async fn main() -> std::io::Result<()> {
             })
             .allowed_origin_fn(|origin, _req_head| {
                 origin.as_bytes().ends_with(b"localhost")
+            })
+            .allowed_origin_fn(|origin, _req_head| {
+                origin.as_bytes().ends_with(b"ff.pacheco.io")
             })
             .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
             .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
