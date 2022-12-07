@@ -9,3 +9,13 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: root
+
+  feature_flags_service:
+    image: thisk8brd/feature-flags-service
+    build:
+      context: .
+    ports:
+      - 8080:8080
+    environment:
+      MONGODB_URI: mongodb://root:root@mongo:27017
+      DATABASE_NAME: test
