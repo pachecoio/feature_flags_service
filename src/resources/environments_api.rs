@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::sync::Mutex;
 use actix_web::{HttpResponse, Scope, web};
 use actix_web::web::Json;
 use chrono::Utc;
@@ -14,8 +15,8 @@ use crate::services::{environment_handlers, feature_flag_handlers, ServiceError}
 use crate::resources::feature_flags_api::{FeatureFlagCreateSchema};
 
 
-async fn find(data: web::Data<AppState>) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+async fn find(data: web::Data<Mutex<AppState>>) -> Result<HttpResponse, CustomError> {
+    let db = &data.lock().unwrap().db;
     let repo = environment_repository_factory(db).await;
     let res = environment_handlers::find(&repo, None).await;
     let envs = match res {
@@ -31,10 +32,11 @@ pub struct EnvironmentList {
 }
 
 async fn create(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     body: Json<Environment>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+    let mut app_data = data.lock().unwrap();
+    let db = &app_data.db;
     let repo = environment_repository_factory(db).await;
     match environment_handlers::create(&repo, &body.name).await {
         Ok(id) => {
@@ -49,10 +51,10 @@ async fn create(
 
 
 async fn get(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     id: web::Path<String>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+    let db = &data.lock().unwrap().db;
     let repo = environment_repository_factory(db).await;
     let env_id = id.into_inner();
     match environment_handlers::get(&repo, &env_id).await {
@@ -66,10 +68,10 @@ async fn get(
 }
 
 async fn delete(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     id: web::Path<String>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+    let db = &data.lock().unwrap().db;
     let repo = environment_repository_factory(db).await;
     let flag_id = id.into_inner();
     match environment_handlers::delete(&repo, &flag_id).await {
@@ -79,11 +81,11 @@ async fn delete(
 }
 
 async fn set_flag(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     id: web::Path<String>,
     body: Json<FeatureFlagCreateSchema>
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+    let db = &data.lock().unwrap().db;
     let repo = environment_repository_factory(db).await;
 
     let new_flag = FeatureFlag {
@@ -104,10 +106,10 @@ async fn set_flag(
 }
 
 async fn remove_flag(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     path: web::Path<(String, String)>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+    let db = &data.lock().unwrap().db;
     let repo = environment_repository_factory(db).await;
     let (env_id, flag_name) = path.into_inner();
 

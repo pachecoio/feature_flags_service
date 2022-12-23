@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
 use crate::domain::models::{FeatureFlag, Rule};
 use crate::resources::CustomError;
@@ -10,8 +11,8 @@ use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 use crate::adapters::repositories::{ErrorKind, RepositoryError};
 
-async fn find(data: web::Data<AppState>) -> Result<Json<FeatureFlagList>> {
-    let db = &data.db;
+async fn find(data: web::Data<Mutex<AppState>>) -> Result<Json<FeatureFlagList>> {
+    let db = &data.lock().unwrap().db;
     let repo = feature_flags_repository_factory(db).await;
     let res = feature_flag_handlers::find(&repo, None).await;
     let flags = match res {
@@ -20,7 +21,9 @@ async fn find(data: web::Data<AppState>) -> Result<Json<FeatureFlagList>> {
     };
     Ok(Json(FeatureFlagList { items: flags }))
 }
-async fn get(data: web::Data<AppState>, id: web::Path<String>) -> Result<HttpResponse, CustomError> { let db = &data.db;
+
+async fn get(data: web::Data<Mutex<AppState>>, id: web::Path<String>) -> Result<HttpResponse, CustomError> {
+    let db = &data.lock().unwrap().db;
     let repo = feature_flags_repository_factory(db).await;
     let flag_id = id.into_inner();
     match feature_flag_handlers::get(&repo, &flag_id).await {
@@ -34,10 +37,11 @@ async fn get(data: web::Data<AppState>, id: web::Path<String>) -> Result<HttpRes
 }
 
 async fn create(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     body: Json<FeatureFlagCreateSchema>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+    let mut app_data = data.lock().unwrap();
+    let db = &app_data.db;
     let repo = feature_flags_repository_factory(db).await;
     match feature_flag_handlers::create(
         &repo, &body.name, &body.label, body.enabled, &body.rules,
@@ -45,6 +49,8 @@ async fn create(
         Ok(id) => {
             match feature_flag_handlers::get(&repo, &id).await {
                 Ok(f) => {
+                    // Flag created, invalidate cache
+                    app_data.flags = vec![];
                     Ok(
                         HttpResponse::Created().json(Json(f))
                     )
@@ -57,19 +63,24 @@ async fn create(
 }
 
 async fn update(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     body: Json<FeatureFlagUpdateSchema>,
     id: web::Path<String>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+    let mut app_data = data.lock().unwrap();
+    let db = &app_data.db;
     let repo = feature_flags_repository_factory(db).await;
     let flag_id = id.into_inner();
     match feature_flag_handlers::update(&repo, &flag_id, &body.label, body.enabled, body.rules.to_vec()).await {
         Ok(id) => {
             match feature_flag_handlers::get(&repo, &flag_id).await {
-                Ok(f) => Ok(
-                    HttpResponse::Accepted().json(Json(f))
-                ),
+                Ok(f) => {
+                    // Flag updated, invalidate cache
+                    app_data.flags = vec![];
+                    Ok(
+                        HttpResponse::Accepted().json(Json(f))
+                    )
+                },
                 Err(err) => Err(CustomError::ApplicationError)
             }
         },
@@ -78,14 +89,19 @@ async fn update(
 }
 
 async fn delete(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     id: web::Path<String>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+    let mut app_data = data.lock().unwrap();
+    let db = &app_data.db;
     let repo = feature_flags_repository_factory(db).await;
     let flag_id = id.into_inner();
     match feature_flag_handlers::delete(&repo, &flag_id).await {
-        Ok(_) => Ok(HttpResponse::NoContent().finish()),
+        Ok(_) => {
+            // Flag deleted, invalidate cache
+            app_data.flags = vec![];
+            Ok(HttpResponse::NoContent().finish())
+        },
         Err(_) => Err(CustomError::NotFound),
     }
 }
