@@ -140,7 +140,7 @@ mod tests {
     use serde_json::json;
     use crate::adapters::repositories::environment_repository::environment_repository_factory;
     use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
-    use crate::AppState;
+    use crate::{AppState, get_state};
     use crate::database::init_db;
     use crate::domain::models::Environment;
     use crate::resources::feature_flags_api;
@@ -150,11 +150,7 @@ mod tests {
     async fn test_find() {
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(AppState {
-                    app_name: String::from("Feature Flags"),
-                    db: init_db().await.unwrap(),
-                    flags: vec![],
-                }))
+                .app_data(web::Data::clone(&get_state().await))
                 .service(create_scope()),
         )
         .await;
@@ -170,11 +166,7 @@ mod tests {
         let db = init_db().await.unwrap();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(AppState {
-                    app_name: String::from("Feature Flags"),
-                    db: db.clone(),
-                    flags: vec![],
-                }))
+                .app_data(web::Data::clone(&get_state().await))
                 .service(create_scope()),
         )
         .await;
@@ -206,11 +198,7 @@ mod tests {
         let db = init_db().await.unwrap();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(AppState {
-                    app_name: String::from("Feature Flags"),
-                    db: db.clone(),
-                    flags: vec![],
-                }))
+                .app_data(web::Data::clone(&get_state().await))
                 .service(create_scope())
                 .service(feature_flags_api::create_scope()),
         )

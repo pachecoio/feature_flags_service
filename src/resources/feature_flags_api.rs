@@ -139,7 +139,7 @@ pub struct FeatureFlagCreateSchema {
 mod tests {
     use super::*;
     use crate::domain::models::{Operator, Rule};
-    use crate::AppState;
+    use crate::{AppState, get_state};
     use actix_web::http::StatusCode;
     use actix_web::{
         http::{self, header::ContentType},
@@ -156,11 +156,7 @@ mod tests {
         let db = init_db().await.unwrap();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(AppState {
-                    app_name: String::from("Feature Flags"),
-                    db: db.clone(),
-                    flags: vec![],
-                }))
+                .app_data(web::Data::clone(&get_state().await))
                 .service(create_scope()),
         )
         .await;

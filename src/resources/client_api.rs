@@ -50,11 +50,12 @@ async fn get_all_flags(data: &Data<Mutex<AppState>>) -> Result<Vec<FeatureFlag>,
 }
 
 async fn get_environment_flags_from_context(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     body: Json<FeatureFlagsContextSchema>,
     environment_name: web::Path<String>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
+    let app_data = data.lock().unwrap();
+    let db = &app_data.db;
     let repo = feature_flags_repository_factory(db).await;
     let env_repo = environment_repository_factory(db).await;
     let name = environment_name.into_inner();
@@ -81,14 +82,6 @@ async fn get_environment_flags_from_context(
     }
 }
 
-async fn flags_from_context(
-    data: web::Data<AppState>,
-    body: Json<FeatureFlagsContextSchema>,
-) -> Result<HttpResponse, CustomError> {
-    Ok(HttpResponse::Ok().json(Json(Map::new())))
-}
-
-
 #[derive(Serialize, Deserialize)]
 struct FeatureFlagsContextSchema {
     context: Map<String, Value>,
@@ -110,20 +103,17 @@ mod tests {
     use chrono::Utc;
     use crate::database::init_db;
     use crate::domain::models::{Environment, Operator, Rule};
+    use crate::get_state;
     use crate::resources::{environments_api, feature_flags_api};
     use crate::resources::feature_flags_api::FeatureFlagCreateSchema;
     use super::*;
 
     #[actix_web::test]
     async fn test_get_client_flags() {
-        let db = init_db().await.unwrap();
+        let state = get_state().await;
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(AppState {
-                    app_name: String::from("Feature Flags"),
-                    db: db.clone(),
-                    flags: Vec::new(),
-                }))
+                .app_data(web::Data::clone(&state))
                 .service(feature_flags_api::create_scope())
                 .service(create_scope()),
         )
@@ -197,14 +187,10 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_environment_flags() {
-        let db = init_db().await.unwrap();
+        let state = get_state().await;
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(AppState {
-                    app_name: String::from("Feature Flags"),
-                    db: db.clone(),
-                    flags: Vec::new(),
-                }))
+                .app_data(web::Data::clone(&state))
                 .service(feature_flags_api::create_scope())
                 .service(environments_api::create_scope())
                 .service(create_scope()),
