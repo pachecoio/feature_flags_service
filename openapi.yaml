@@ -1,0 +1,446 @@
+openapi: 3.1.0
+x-stoplight:
+  id: 304fz4k92zuka
+info:
+  title: Feature flags
+  version: '1.0'
+  contact:
+    name: Thiago Pacheco
+    url: pacheco.io
+    email: hi@pacheco.io
+  license:
+    name: MIT
+    identifier: MIT
+  summary: Feature flag manager service
+  description: ''
+servers:
+  - url: 'http://localhost:8080'
+paths:
+  /admin/feature_flags:
+    parameters: []
+    get:
+      summary: Get all feature flags
+      operationId: get-admin-feature_flags
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FeatureFlag'
+      description: Get all feature flags defined
+      tags:
+        - Feature flags
+    post:
+      summary: Create a feature flag
+      operationId: post-admin-feature_flags
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlag'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                Example 1:
+                  value:
+                    code: 409
+                    error: Conflict
+                    message: Conflict
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlagNew'
+            examples:
+              Example 1:
+                value:
+                  name: sample_flag
+                  label: Sample Flag
+                  enabled: true
+                  rules:
+                    - parameter: tenant
+                      operator:
+                        Is: tenant_1
+      tags:
+        - Feature flags
+      description: Create a feature flag
+  '/admin/feature_flags/{id}':
+    parameters:
+      - schema:
+          type: string
+        name: id
+        in: path
+        required: true
+    get:
+      summary: Get a feature flag by id
+      tags:
+        - Feature flags
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlag'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                Example 1:
+                  value:
+                    code: 404
+                    error: NotFound
+                    message: Resource not found
+      operationId: get-admin-feature_flags-id
+      description: Get a feature flag by id
+    put:
+      summary: Update a feature flag
+      operationId: put-admin-feature_flags-id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureFlag'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlagNew'
+            examples:
+              Example 1:
+                value:
+                  name: sample_flag
+                  label: Sample Flag
+                  enabled: false
+                  rules:
+                    - parameter: user
+                      operator:
+                        IsOneOf:
+                          - user_1
+      tags:
+        - Feature flags
+      description: Update a feature flag
+    delete:
+      summary: Delete a feature flag
+      operationId: delete-admin-feature_flags-id
+      responses:
+        '204':
+          description: No Content
+      tags:
+        - Feature flags
+      description: |
+        Delete a feature flag
+  /admin/environments:
+    parameters: []
+    get:
+      summary: Get environments
+      operationId: get-admin-environments
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Environment'
+      tags:
+        - Environments
+      description: Get list of environments
+    post:
+      summary: Create an environment
+      operationId: post-admin-environments
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Environment'
+              examples:
+                Example 1:
+                  value:
+                    id:
+                      _id:
+                        $oid: string
+                    name: string
+                    flags:
+                      - name: string
+                        label: string
+                        enabled: true
+                        rules:
+                          - parameter: string
+                            operator: {}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentNew'
+            examples:
+              Example 1:
+                value:
+                  name: string
+                  flags: []
+      tags:
+        - Environments
+      description: Create an environment
+  '/admin/environments/{id}':
+    parameters:
+      - schema:
+          type: string
+        name: id
+        in: path
+        required: true
+    get:
+      summary: Get an environment by id
+      tags:
+        - Environments
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Environment'
+      operationId: get-admin-environments-id
+      description: Get an environment by id
+    delete:
+      summary: Delete environment
+      operationId: delete-admin-environments-id
+      responses:
+        '204':
+          description: No Content
+      tags:
+        - Environments
+      description: Delete an environment
+  '/admin/environments/{id}/flags':
+    parameters:
+      - schema:
+          type: string
+        name: id
+        in: path
+        required: true
+    put:
+      summary: Override an environment flag
+      operationId: put-admin-environments-id-flags
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Environment'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureFlagNew'
+      tags:
+        - Environment flags
+      description: Override an environment flag
+  '/admin/environments/{id}/flags/{name}':
+    parameters:
+      - schema:
+          type: string
+        name: id
+        in: path
+        required: true
+      - schema:
+          type: string
+        name: name
+        in: path
+        required: true
+    delete:
+      summary: Remove an environment flag
+      operationId: delete-admin-environments-id-flags-name
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Environment'
+      tags:
+        - Environment flags
+      description: Removed an environment flag
+  /flags:
+    post:
+      summary: Get all flags given a context
+      operationId: post-flags
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+              examples:
+                Example 1:
+                  value:
+                    sample_flag: true
+                    sample_flag_disabled: false
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+            examples:
+              Example 1:
+                value:
+                  context:
+                    tenant: tenant_1
+                    some other prop:
+                      - value
+      tags:
+        - Client
+      description: List all flags in the system given a context
+  '/flags/{environment_name}':
+    parameters:
+      - schema:
+          type: string
+        name: environment_name
+        in: path
+        required: true
+    post:
+      summary: Get all flags from an environment given a context
+      operationId: post-flags-environment_name
+      responses:
+        '200':
+          description: OK
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context:
+                  type: object
+            examples:
+              Example 1:
+                value:
+                  context:
+                    tenant: tenant_1
+      tags:
+        - Client
+      description: List all flags in the system along with overrides defined in the given environment
+components:
+  schemas:
+    FeatureFlag:
+      title: FeatureFlag
+      x-stoplight:
+        id: xgelzknwv8jed
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        name:
+          type: string
+        label:
+          type: string
+        enabled:
+          type: boolean
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
+    ObjectId:
+      title: ObjectId
+      x-stoplight:
+        id: 6f1hpqa9utj21
+      type: object
+      properties:
+        _id:
+          type: object
+          properties:
+            $oid:
+              type: string
+    Rule:
+      title: Rule
+      x-stoplight:
+        id: ocevzixyaklxz
+      type: object
+      properties:
+        parameter:
+          type: string
+        operator:
+          type: object
+    FeatureFlagNew:
+      title: FeatureFlagNew
+      x-stoplight:
+        id: 7hsj72t809wi3
+      type: object
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        enabled:
+          type: boolean
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
+    ErrorResponse:
+      title: ErrorResponse
+      x-stoplight:
+        id: dd0xlhu34zvkg
+      type: object
+      examples:
+        - code: 400
+          error: Error
+          message: error
+      properties:
+        code:
+          type: number
+        error:
+          type: string
+        message:
+          type: string
+    Environment:
+      title: Environment
+      x-stoplight:
+        id: ubdl169b4wcrs
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/ObjectId'
+        name:
+          type: string
+        flags:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureFlagNew'
+    EnvironmentNew:
+      title: EnvironmentNew
+      x-stoplight:
+        id: dej6ms1hytwgc
+      type: object
+      properties:
+        name:
+          type: string
+        flags:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureFlagNew'
