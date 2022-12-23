@@ -43,12 +43,16 @@ async fn create(
             let mut env = Environment::new(&body.name);
             let env_id = ObjectId::parse_str(id).expect("");
             env.id = Some(env_id);
+            app_data.envs.insert(env.name.clone(), Environment {
+                id: Some(env_id),
+                name: env.name.clone(),
+                flags: env.flags.clone(),
+            });
             Ok(HttpResponse::Created().json(Json(env)))
         }
         Err(_) => Err(CustomError::Conflict),
     }
 }
-
 
 async fn get(
     data: web::Data<Mutex<AppState>>,
@@ -71,11 +75,20 @@ async fn delete(
     data: web::Data<Mutex<AppState>>,
     id: web::Path<String>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.lock().unwrap().db;
+    let mut app_data = data.lock().unwrap();
+    let db = &app_data.db;
     let repo = environment_repository_factory(db).await;
-    let flag_id = id.into_inner();
-    match environment_handlers::delete(&repo, &flag_id).await {
-        Ok(_) => Ok(HttpResponse::NoContent().finish()),
+    let env_id = id.into_inner();
+    match environment_handlers::get(&repo, &env_id).await {
+        Ok(env) => {
+            match environment_handlers::delete(&repo, &env_id).await {
+                Ok(_) => {
+                    app_data.envs.remove(&env.name);
+                    Ok(HttpResponse::NoContent().finish())
+                },
+                Err(_) => Err(CustomError::NotFound),
+            }
+        },
         Err(_) => Err(CustomError::NotFound),
     }
 }
@@ -85,7 +98,8 @@ async fn set_flag(
     id: web::Path<String>,
     body: Json<FeatureFlagCreateSchema>
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.lock().unwrap().db;
+    let mut app_data = data.lock().unwrap();
+    let db = &app_data.db;
     let repo = environment_repository_factory(db).await;
 
     let new_flag = FeatureFlag {
@@ -100,7 +114,14 @@ async fn set_flag(
 
     let env_id = id.into_inner();
     match environment_handlers::set_flag(&repo, &env_id, &new_flag).await {
-        Ok(env) => Ok(HttpResponse::Accepted().json(Json(env))),
+        Ok(env) => {
+            app_data.envs.insert(env.name.clone(), Environment {
+                id: env.id,
+                name: env.name.clone(),
+                flags: env.flags.clone(),
+            });
+            Ok(HttpResponse::Accepted().json(Json(env)))
+        },
         Err(_) => Err(CustomError::NotFound)
     }
 }
@@ -109,12 +130,20 @@ async fn remove_flag(
     data: web::Data<Mutex<AppState>>,
     path: web::Path<(String, String)>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.lock().unwrap().db;
+    let mut app_data = data.lock().unwrap();
+    let db = &app_data.db;
     let repo = environment_repository_factory(db).await;
     let (env_id, flag_name) = path.into_inner();
 
     match environment_handlers::remove_flag(&repo, &env_id, &flag_name).await {
-        Ok(env) => Ok(HttpResponse::Accepted().json(Json(env))),
+        Ok(env) => {
+            app_data.envs.insert(env.name.clone(), Environment {
+                id: env.id,
+                name: env.name.clone(),
+                flags: env.flags.clone(),
+            });
+            Ok(HttpResponse::Accepted().json(Json(env)))
+        },
         Err(_) => Err(CustomError::NotFound)
     }
 

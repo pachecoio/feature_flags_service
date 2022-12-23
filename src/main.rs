@@ -5,6 +5,7 @@ mod resources;
 mod services;
 mod utils;
 
+use std::collections::HashMap;
 use std::sync::Mutex;
 use crate::database::init_db;
 use crate::resources::{feature_flags_api, environments_api, client_api};
@@ -12,12 +13,13 @@ use actix_web::{web, App, HttpServer, http};
 use mongodb::Database;
 use actix_cors::Cors;
 use actix_web::web::Data;
-use crate::domain::models::FeatureFlag;
+use crate::domain::models::{Environment, FeatureFlag};
 
 struct AppState {
     app_name: String,
     db: Database,
     flags: Vec<FeatureFlag>,
+    envs: HashMap<String, Environment>
 }
 
 async fn get_state() -> Data<Mutex<AppState>> {
@@ -25,6 +27,7 @@ async fn get_state() -> Data<Mutex<AppState>> {
         app_name: String::from("Feature Flags"),
         db: init_db().await.unwrap(),
         flags: Vec::new(),
+        envs: HashMap::new()
     }))
 }
 

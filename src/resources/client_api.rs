@@ -6,11 +6,11 @@ use serde_json::{Map, Value};
 use crate::adapters::repositories::{BaseRepository, RepositoryError};
 use crate::adapters::repositories::feature_flags_repository::feature_flags_repository_factory;
 use crate::AppState;
-use crate::domain::models::FeatureFlag;
+use crate::domain::models::{Environment, FeatureFlag};
 use crate::resources::CustomError;
 use serde::{Serialize, Deserialize};
 use crate::adapters::repositories::environment_repository::environment_repository_factory;
-use crate::services::environment_handlers;
+use crate::services::{environment_handlers, ServiceError};
 
 async fn get_flags_from_context(
     data: web::Data<Mutex<AppState>>,
@@ -54,15 +54,11 @@ async fn get_environment_flags_from_context(
     body: Json<FeatureFlagsContextSchema>,
     environment_name: web::Path<String>,
 ) -> Result<HttpResponse, CustomError> {
-    let app_data = data.lock().unwrap();
-    let db = &app_data.db;
-    let repo = feature_flags_repository_factory(db).await;
-    let env_repo = environment_repository_factory(db).await;
     let name = environment_name.into_inner();
 
-    match environment_handlers::get_by_name(&env_repo, &name).await {
+    match get_environment(&data, &name).await {
         Ok(env) => {
-            match repo.find(doc! {"enabled": true}).await {
+            match get_all_flags(&data).await {
                 Ok(all_flags) => {
                     let mut valid_flags = env.get_flags_from_context(&body.context);
                     for flag in all_flags {
@@ -79,6 +75,32 @@ async fn get_environment_flags_from_context(
             }
         },
         Err(_) => return Err(CustomError::NotFound)
+    }
+}
+
+async fn get_environment(data: &Data<Mutex<AppState>>, environment_name: &str) -> Result<Environment, ServiceError> {
+    let mut app_data = data.lock().unwrap();
+    if app_data.envs.contains_key(environment_name) {
+        let env = app_data.envs.get(environment_name).unwrap();
+        return Ok(Environment {
+            id: env.id.clone(),
+            name: env.name.clone(),
+            flags: env.flags.clone()
+        });
+    }
+    let db = &app_data.db;
+    let repo = environment_repository_factory(db).await;
+
+    match environment_handlers::get_by_name(&repo, environment_name).await {
+        Ok(env) => {
+            app_data.envs.insert(env.name.clone(), Environment {
+                id: env.id.clone(),
+                name: env.name.clone(),
+                flags: env.flags.clone()
+            });
+            Ok(env)
+        },
+        Err(err) => return Err(err)
     }
 }
 
