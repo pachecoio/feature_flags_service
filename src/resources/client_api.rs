@@ -1,5 +1,6 @@
+use std::sync::Mutex;
 use actix_web::{HttpResponse, Scope, web};
-use actix_web::web::Json;
+use actix_web::web::{Data, Json};
 use mongodb::bson::doc;
 use serde_json::{Map, Value};
 use crate::adapters::repositories::{BaseRepository, RepositoryError};
@@ -12,13 +13,11 @@ use crate::adapters::repositories::environment_repository::environment_repositor
 use crate::services::environment_handlers;
 
 async fn get_flags_from_context(
-    data: web::Data<AppState>,
+    data: web::Data<Mutex<AppState>>,
     body: Json<FeatureFlagsContextSchema>,
 ) -> Result<HttpResponse, CustomError> {
-    let db = &data.db;
-    let repo = feature_flags_repository_factory(db).await;
 
-    match repo.find(doc! {"enabled": true}).await {
+    match get_all_flags(&data).await {
         Ok(all_flags) => {
             let mut valid_flags = Map::new();
             for flag in all_flags {
@@ -31,6 +30,23 @@ async fn get_flags_from_context(
         }
         Err(err) => Err(CustomError::ApplicationError)
     }
+}
+
+async fn get_all_flags(data: &Data<Mutex<AppState>>) -> Result<Vec<FeatureFlag>, RepositoryError> {
+    let mut app_data = data.lock().unwrap();
+    if app_data.flags.is_empty() {
+        let db = &app_data.db;
+        let repo = feature_flags_repository_factory(db).await;
+        return match repo.find(doc! {"enabled": true}).await {
+            Ok(all_flags) => {
+                app_data.flags = all_flags;
+                Ok(app_data.flags.clone())
+                // Ok(all_flags)
+            }
+            Err(err) => Err(err)
+        }
+    }
+    Ok(app_data.flags.clone())
 }
 
 async fn get_environment_flags_from_context(
@@ -106,6 +122,7 @@ mod tests {
                 .app_data(web::Data::new(AppState {
                     app_name: String::from("Feature Flags"),
                     db: db.clone(),
+                    flags: Vec::new(),
                 }))
                 .service(feature_flags_api::create_scope())
                 .service(create_scope()),
@@ -186,6 +203,7 @@ mod tests {
                 .app_data(web::Data::new(AppState {
                     app_name: String::from("Feature Flags"),
                     db: db.clone(),
+                    flags: Vec::new(),
                 }))
                 .service(feature_flags_api::create_scope())
                 .service(environments_api::create_scope())

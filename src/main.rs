@@ -5,20 +5,27 @@ mod resources;
 mod services;
 mod utils;
 
+use std::sync::Mutex;
 use crate::database::init_db;
 use crate::resources::{feature_flags_api, environments_api, client_api};
 use actix_web::{web, App, HttpServer, http};
 use mongodb::Database;
 use actix_cors::Cors;
+use crate::domain::models::FeatureFlag;
 
 struct AppState {
     app_name: String,
     db: Database,
+    flags: Vec<FeatureFlag>,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let db = init_db().await.unwrap();
+    let app_data = web::Data::new(Mutex::new(AppState {
+        app_name: String::from("Feature Flags"),
+        db: init_db().await.unwrap(),
+        flags: Vec::new(),
+    }));
     HttpServer::new(move || {
         let cors = Cors::default()
             .allowed_origin("http://127.0.0.1:5173")
@@ -44,10 +51,7 @@ async fn main() -> std::io::Result<()> {
             .max_age(3600);
         App::new()
             .wrap(cors)
-            .app_data(web::Data::new(AppState {
-                app_name: String::from("Feature Flags"),
-                db: db.clone(),
-            }))
+            .app_data(app_data.clone())
             .service(client_api::create_scope())
             .service(feature_flags_api::create_scope())
             .service(environments_api::create_scope())

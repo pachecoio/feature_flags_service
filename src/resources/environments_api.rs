@@ -151,6 +151,7 @@ mod tests {
                 .app_data(web::Data::new(AppState {
                     app_name: String::from("Feature Flags"),
                     db: init_db().await.unwrap(),
+                    flags: vec![],
                 }))
                 .service(create_scope()),
         )
@@ -170,6 +171,7 @@ mod tests {
                 .app_data(web::Data::new(AppState {
                     app_name: String::from("Feature Flags"),
                     db: db.clone(),
+                    flags: vec![],
                 }))
                 .service(create_scope()),
         )
@@ -205,6 +207,7 @@ mod tests {
                 .app_data(web::Data::new(AppState {
                     app_name: String::from("Feature Flags"),
                     db: db.clone(),
+                    flags: vec![],
                 }))
                 .service(create_scope())
                 .service(feature_flags_api::create_scope()),
